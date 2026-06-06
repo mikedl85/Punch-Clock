@@ -79,7 +79,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 .pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border2);background:transparent;transition:all .12s}
 .pin-dot.filled{background:var(--accent);border-color:var(--accent);box-shadow:0 0 10px rgba(212,168,67,.5)}
 .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:250px;margin:0 auto 16px}
-.num-btn{padding:20px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);font-size:24px;font-family:'DM Mono',monospace;color:var(--text);cursor:pointer;transition:all .1s}
+.num-btn{padding:20px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);font-size:24px;font-family:'DM Mono',monospace;color:var(--text);cursor:pointer;transition:all .1s;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 .num-btn:hover{background:var(--surface3);border-color:var(--border2)}
 .num-btn:active{transform:scale(.96)}
 .num-btn.del{font-size:13px;color:var(--text2)}
@@ -101,10 +101,14 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 .s-times{font-family:'DM Mono',monospace;font-size:14px;color:var(--text2);text-align:right}
 .s-hrs{font-family:'DM Mono',monospace;font-size:14px;color:var(--accent);margin-left:8px}
 .flag{display:inline-flex;align-items:center;gap:4px;font-family:'DM Mono',monospace;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;margin-left:6px}
-.flag-late{background:#2a1400;color:#e09050;border:1px solid #4a2800}
-.flag-early{background:#1a0a2a;color:#a07ae0;border:1px solid #3a1a5a}
+.flag-late{background:#2a1400;color:#e09050;border:1px solid #4a2800;cursor:pointer}
+.flag-early{background:#1a0a2a;color:#a07ae0;border:1px solid #3a1a5a;cursor:pointer}
+.flag-early-in{background:#0a1a2a;color:#50a0e0;border:1px solid #1a3a5a;cursor:pointer}
 .flag-missed{background:#2a0a0a;color:#e05050;border:1px solid #5a1a1a}
 .flag-note{background:#0a1a2a;color:#508ae0;border:1px solid #1a3a5a}
+.flag-manual{opacity:.7;font-style:italic}
+.flag-add-btn{cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;padding:2px 8px;border-radius:10px;border:1px dashed var(--border2);color:var(--text3);background:transparent;transition:all .15s}
+.flag-add-btn:hover{border-color:var(--accent);color:var(--accent)}
 /* NOTE INPUT on clock-out */
 .note-wrap{margin-top:12px;display:none}
 .note-wrap.show{display:block}
@@ -599,7 +603,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
   </div>
   <div class="admin-content" id="admin-content">
   <div class="admin-bar">
-    <span>🔓 Admin unlocked</span>
+    <span>🔓 Admin unlocked <span id="lock-countdown" style="font-size:11px;color:var(--text3);margin-left:8px"></span></span>
     <button class="btn btn-ghost btn-sm" onclick="lockAdmin()">Lock</button>
   </div>
   <div class="atabs">
@@ -1198,7 +1202,14 @@ function renderDots(){
   for(let i=0;i<4;i++){const d=document.createElement('div');d.className='pin-dot'+(i<currentPin.length?' filled':'');c.appendChild(d);}
 }
 renderDots();
-function addPin(n){if(currentPin.length>=4||pinReady)return;currentPin+=n;renderDots();if(currentPin.length===4)verifyPin();}
+let lastPinTime = 0;
+function addPin(n){
+  const now = Date.now();
+  if (now - lastPinTime < 320) return; // debounce 320ms — prevents double-tap
+  lastPinTime = now;
+  if(currentPin.length>=4||pinReady)return;
+  currentPin+=n;renderDots();if(currentPin.length===4)verifyPin();
+}
 function delPin(){if(pinReady){currentPin='';pinReady=false;setBtns(false);renderDots();return;}currentPin=currentPin.slice(0,-1);renderDots();}
 function onEmpChange(){currentPin='';pinReady=false;setBtns(false);renderDots();showTodayShiftBanner();
   document.getElementById('my-account-wrap').style.display='none';
@@ -1310,11 +1321,12 @@ function getFlags(rec) {
   const schedOutMins = rec.schedEnd==='00:00' ? 24*60 : timeToMins(rec.schedEnd);
   const actualInMins = timeToMins(rec.punchIn);
   const lateBy = actualInMins - schedInMins;
-  if (lateBy > LATE_MINS) flags.push({type:'late', msg:`Late in +${lateBy}m`});
+  if (lateBy > LATE_MINS) flags.push({type:'late', msg:'Late in +'+lateBy+'m'});
+  if (lateBy < -LATE_MINS) flags.push({type:'early-in', msg:'Early in '+Math.abs(lateBy)+'m'});
   if (rec.punchOut) {
     const actualOutMins = timeToMins(rec.punchOut);
     const earlyBy = schedOutMins - actualOutMins;
-    if (earlyBy > LATE_MINS) flags.push({type:'early', msg:`Left early -${earlyBy}m`});
+    if (earlyBy > LATE_MINS) flags.push({type:'early', msg:'Left early -'+earlyBy+'m'});
   }
   if (!rec.punchOut && rec.schedEnd) {
     const now = new Date();
@@ -1381,12 +1393,47 @@ function punch(type){
   document.getElementById('emp-select').value='';resetPin();showTodayShiftBanner();renderToday();
 }
 
-function flagHTML(flags) {
+function flagHTML(flags, punchId) {
   if (!flags||!flags.length) return '';
   return flags.map(f=>{
-    const cls=f.type==='late'?'flag-late':f.type==='early'?'flag-early':'flag-missed';
-    return`<span class="flag ${cls}">${f.msg}</span>`;
+    const cls = f.type==='late'?'flag-late'
+              : f.type==='early'?'flag-early'
+              : f.type==='early-in'?'flag-early-in'
+              : f.type==='missed'?'flag-missed':'flag-note';
+    const manual = f.manual?' flag-manual':'';
+    const tip = f.manual?'Manual flag — click to remove':'Auto-detected — click to remove';
+    if (punchId !== undefined) {
+      return '<span class="flag '+cls+manual+'" title="'+tip+'" data-pid="'+punchId+'" data-ftype="'+f.type+'" onclick="handleFlagClick(this)">'+f.msg+'</span>';
+    }
+    return '<span class="flag '+cls+manual+'">'+f.msg+'</span>';
   }).join('');
+}
+
+function toggleFlag(punchId, type) {
+  const punch = punches.find(p=>String(p.id)===String(punchId));
+  if (!punch) return;
+  if (!punch.flags) punch.flags = [];
+  const idx = punch.flags.findIndex(f=>f.type===type);
+  if (idx > -1) {
+    punch.flags.splice(idx, 1);
+    toast('Flag removed', 'ok');
+  } else {
+    // Should not happen via click, but handle anyway
+    punch.flags.push({type, msg: type, manual: true});
+    toast('Flag added', 'ok');
+  }
+  save(); pushPunch(punch); renderLogs(); renderToday();
+}
+
+function addManualFlag(punchId, type) {
+  const punch = punches.find(p=>String(p.id)===String(punchId));
+  if (!punch) return;
+  if (!punch.flags) punch.flags = [];
+  if (punch.flags.find(f=>f.type===type)) { toast('Flag already set', 'err'); return; }
+  const msgs = {'late':'Late in (manual)', 'early':'Left early (manual)', 'early-in':'Early in (manual)'};
+  punch.flags.push({type, msg: msgs[type]||type, manual:true});
+  save(); pushPunch(punch); renderLogs(); renderToday();
+  toast('Flag added', 'ok');
 }
 
 function renderToday(){
@@ -1399,8 +1446,8 @@ function renderToday(){
     const times=p.punchOut?p.punchIn+' → '+p.punchOut:p.punchIn+' → open';
     const hrs=p.hoursWorked?'<span class="s-hrs">'+p.hoursWorked+'h</span>':'';
     const flags=flagHTML(p.flags||[]);
-    const note=p.note?`<span class="flag flag-note" title="${p.note}">📝 note</span>`:'';
-    return`<div class="status-row"><div class="s-dot ${dc}"></div><span class="s-name">${p.empName}</span><span class="s-sched">${sched}</span><span class="s-times">${times}${hrs}${flags}${note}</span></div>`;
+    const note=p.note?'<span class="flag flag-note" title="'+p.note+'">📝 note</span>':'';
+    return'<div class="status-row"><div class="s-dot '+dc+'"></div><span class="s-name">'+p.empName+'</span><span class="s-sched">'+sched+'</span><span class="s-times">'+times+hrs+flags+note+'</span></div>';
   }).join('');
 }
 renderToday();
@@ -1749,13 +1796,34 @@ function renderAdminShifts(){
     }).join('')+`</tbody></table>`;
 }
 
+function autoFormatTime(val) {
+  // Accept: 2210 -> 22:10, 930 -> 09:30, 9:3 -> 09:03, 22:10 -> 22:10
+  const raw = val.trim().replace(/[^0-9:]/g, '');
+  if (!raw) return null;
+  let h, m;
+  if (raw.includes(':')) {
+    [h, m] = raw.split(':').map(Number);
+  } else if (raw.length <= 2) {
+    h = parseInt(raw); m = 0;
+  } else if (raw.length === 3) {
+    h = parseInt(raw[0]); m = parseInt(raw.slice(1));
+  } else if (raw.length === 4) {
+    h = parseInt(raw.slice(0,2)); m = parseInt(raw.slice(2));
+  } else return null;
+  if (isNaN(h)||isNaN(m)||h>23||m>59) return null;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
 function updateShiftTime(date, emp, field, val) {
-  // Validate HH:MM format
-  const clean = val.trim();
-  if (!/^\d{1,2}:\d{2}$/.test(clean)) { toast('Use 24h format e.g. 14:00', 'err'); return; }
-  const [h,m] = clean.split(':').map(Number);
-  if (h > 23 || m > 59) { toast('Invalid time', 'err'); return; }
-  const normalized = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+  const normalized = autoFormatTime(val);
+  if (!normalized) { toast('Use 24h format e.g. 14:00 or 1400', 'err'); return; }
+  // Update the input to show formatted value
+  const row = document.getElementById('srow-'+date+'-'+emp);
+  if (row) {
+    const inputs = row.querySelectorAll('.editable-time');
+    if (field==='start' && inputs[0]) inputs[0].value = normalized;
+    if (field==='end'   && inputs[1]) inputs[1].value = normalized;
+  }
   const s = shifts.find(x => x.date===date && x.employee===emp);
   if (!s) return;
   if (field==='start') s.start=normalized;
@@ -2096,16 +2164,18 @@ function closePunchModal() {
 
 function savePunchEdit() {
   if (!editingPunchId) { toast('No punch selected','err'); return; }
-  const inVal  = document.getElementById('modal-in').value.trim();
-  const outVal = document.getElementById('modal-out').value.trim();
+  const rawIn  = document.getElementById('modal-in').value.trim();
+  const rawOut = document.getElementById('modal-out').value.trim();
   const note   = document.getElementById('modal-note').value.trim();
-
-  if (inVal && !/^\d{1,2}:\d{2}$/.test(inVal))  { toast('Use 24h format e.g. 14:00','err'); return; }
-  if (outVal && !/^\d{1,2}:\d{2}$/.test(outVal)) { toast('Use 24h format e.g. 22:00','err'); return; }
-
+  const inVal  = rawIn  ? autoFormatTime(rawIn)  : null;
+  const outVal = rawOut ? autoFormatTime(rawOut) : null;
+  if (rawIn  && !inVal)  { toast('Invalid time — use e.g. 14:00 or 1400','err'); return; }
+  if (rawOut && !outVal) { toast('Invalid time — use e.g. 22:00 or 2200','err'); return; }
+  // Update modal inputs to show formatted value
+  if (inVal)  document.getElementById('modal-in').value  = inVal;
+  if (outVal) document.getElementById('modal-out').value = outVal;
   const punch = punches.find(p => p.id===editingPunchId);
   if (!punch) { toast('Punch not found','err'); return; }
-
   if (inVal)  { punch.punchIn  = inVal;  punch.punchInDec  = timeToMins(inVal)/1440; }
   if (outVal) { punch.punchOut = outVal; punch.punchOutDec = timeToMins(outVal)/1440; }
   if (punch.punchIn && punch.punchOut) punch.hoursWorked = calcHrs(punch.punchIn,punch.punchOut).toFixed(2);
@@ -2576,12 +2646,17 @@ function navPeriod(dir) {
 
 function closePeriod() {
   const p = getPeriod(viewingPeriodOffset);
-  // Check not already closed
   if (closedPeriods.find(c => c.from === p.from)) {
     toast('Period already closed', 'err'); return;
   }
-  // Summarize
   const recs = punches.filter(x => x.date >= p.from && x.date <= p.to);
+  const openPunches = recs.filter(x => !x.punchOut);
+  let msg = 'Close & archive pay period?\n\n' + fmtDate(p.from) + ' → ' + fmtDate(p.to) + '\n' + recs.length + ' punch records';
+  if (openPunches.length > 0) {
+    msg += '\n\n⚠️ Warning: ' + openPunches.length + ' punch(es) have no clock-out time.';
+  }
+  msg += '\n\nThis period will be marked as paid and archived. Continue?';
+  if (!confirm(msg)) return;
   const byEmp = {};
   recs.forEach(r => {
     if (!byEmp[r.empName]) byEmp[r.empName] = {hrs:0, pay:0};
@@ -2703,7 +2778,24 @@ function renderLogs(){
       const varColor=varVal==null?'var(--text3)':parseFloat(varVal)<-0.5?'var(--red)':parseFloat(varVal)>0.5?'var(--green)':'var(--text2)';
       const fhtml=flagHTML(p.flags||[]);
       const noteStr=p.note?`<span title="${p.note}" style="cursor:help;color:var(--blue)">📝</span>`:'';
-      return`<tr><td>${fmtDate(p.date)}</td><td class="name-td" style="color:${empColor(p.empName)}">${p.empName}</td><td>${sched}</td><td>${p.punchIn}${fhtml.includes('Late')?'<span class="flag flag-late" style="margin-left:4px">late</span>':''}</td><td>${p.punchOut||'—'}${fhtml.includes('early')?'<span class="flag flag-early" style="margin-left:4px">early</span>':''}</td><td>${hrs}</td><td style="color:${varColor};font-family:'DM Mono',monospace;font-size:12px">${varStr}</td><td style="color:var(--accent)">${inv}</td><td>${noteStr}</td><td><button class="btn btn-ghost btn-sm" onclick="openPunchModal('${p.empId}','${p.date}','','')">✏</button></td></tr>`;
+      const allFlags = flagHTML(p.flags||[], p.id);
+      const lateFlags = (p.flags||[]).filter(f=>f.type==='late'||f.type==='early-in');
+      const earlyFlags = (p.flags||[]).filter(f=>f.type==='early');
+      const hasLate = lateFlags.length > 0;
+      const hasEarly = earlyFlags.length > 0;
+      const addLateBtn = !hasLate ? '<button class="flag-add-btn" data-pid="'+p.id+'" data-ftype="late" onclick="handleAddFlag(this)" title="Add late flag">+ late</button>' : '';
+      const addEarlyBtn = !hasEarly ? '<button class="flag-add-btn" data-pid="'+p.id+'" data-ftype="early" onclick="handleAddFlag(this)" title="Add early out">+ early out</button>' : '';
+      const addEarlyInBtn = !(p.flags||[]).find(f=>f.type==='early-in') ? '<button class="flag-add-btn" data-pid="'+p.id+'" data-ftype="early-in" onclick="handleAddFlag(this)" title="Add early in">+ early in</button>' : '';
+      const lateFlagSpans = lateFlags.map(f=>'<span class="flag '+(f.type==='late'?'flag-late':'flag-early-in')+'" data-pid="'+p.id+'" data-ftype="'+f.type+'" onclick="handleFlagClick(this)" title="Click to remove">'+f.msg+'</span>').join('');
+      const earlyFlagSpans = earlyFlags.map(f=>'<span class="flag flag-early" data-pid="'+p.id+'" data-ftype="'+f.type+'" onclick="handleFlagClick(this)" title="Click to remove">'+f.msg+'</span>').join('');
+      return '<tr><td>'+fmtDate(p.date)+'</td><td class="name-td" style="color:'+empColor(p.empName)+'">'+p.empName+'</td><td>'+sched+'</td>'
+        +'<td>'+p.punchIn+' '+lateFlagSpans+addLateBtn+addEarlyInBtn+'</td>'
+        +'<td>'+(p.punchOut||'—')+' '+earlyFlagSpans+addEarlyBtn+'</td>'
+        +'<td>'+hrs+'</td>'
+        +'<td style="color:'+varColor+';font-family:\'DM Mono\',monospace;font-size:12px">'+varStr+'</td>'
+        +'<td style="color:var(--accent)">'+inv+'</td>'
+        +'<td>'+noteStr+'</td>'
+        +'<td><button class="btn btn-ghost btn-sm" onclick="openPunchModal(\''+p.empId+'\',\''+p.date+'\',\'\',\'\')">✏</button></td></tr>';
     }).join('')+`</tbody></table>`;
 
   // ── Period history ──
@@ -2732,7 +2824,11 @@ function renderLogs(){
   }
 }
 
-function clearLogs(){if(!confirm('Clear ALL punch records?'))return;punches=[];save();renderLogs();renderToday();}
+function clearLogs(){
+  if(!confirm('⚠️ Clear ALL punch records?\n\nThis will permanently delete every clock-in and clock-out record. This cannot be undone.\n\nType OK to confirm.'))return;
+  punches=[];save();renderLogs();renderToday();
+  toast('All punch records cleared','ok');
+}
 function exportCSV(){
   if(!punches.length){toast('No records to export','err');return;}
   const rows=[...punches].sort((a,b)=>a.empName.localeCompare(b.empName)||a.date.localeCompare(b.date));
@@ -2753,6 +2849,33 @@ function exportCSV(){
 let adminUnlocked = false;
 let adminPassword = localStorage.getItem('r9k_adminpw') || 'ramen9000';
 
+// ── AUTO-LOCK after 5 min inactivity ─────────────────────────────────────────
+let adminLockTimer = null;
+let adminLockAt = null;
+const ADMIN_LOCK_MS = 5 * 60 * 1000;
+
+function resetAdminLockTimer() {
+  if (!adminUnlocked) return;
+  clearTimeout(adminLockTimer);
+  adminLockAt = Date.now() + ADMIN_LOCK_MS;
+  adminLockTimer = setTimeout(() => {
+    if (adminUnlocked) { lockAdmin(); toast('Admin locked after 5 min inactivity', 'ok'); }
+  }, ADMIN_LOCK_MS);
+}
+
+// Update countdown display every second
+setInterval(() => {
+  const el = document.getElementById('lock-countdown');
+  if (!el || !adminUnlocked || !adminLockAt) return;
+  const secsLeft = Math.max(0, Math.ceil((adminLockAt - Date.now()) / 1000));
+  const m = Math.floor(secsLeft / 60);
+  const s = secsLeft % 60;
+  el.textContent = 'auto-locks in ' + m + ':' + String(s).padStart(2,'0');
+}, 1000);
+
+document.addEventListener('click', () => { if (adminUnlocked) resetAdminLockTimer(); });
+document.addEventListener('keydown', () => { if (adminUnlocked) resetAdminLockTimer(); });
+
 function tryAdminLogin() {
   const pw = document.getElementById('admin-pw-input').value;
   const err = document.getElementById('lock-err');
@@ -2762,6 +2885,7 @@ function tryAdminLogin() {
     document.getElementById('admin-content').classList.add('unlocked');
     document.getElementById('admin-pw-input').value = '';
     err.textContent = '';
+    resetAdminLockTimer();
     renderEmployees(); refreshSelects(); renderAdminShifts(); renderLogs();
     document.getElementById('shift-date').value = new Date().toISOString().slice(0,10);
     updateAnchorPreview();
@@ -2775,6 +2899,7 @@ function tryAdminLogin() {
 
 function lockAdmin() {
   adminUnlocked = false;
+  clearTimeout(adminLockTimer);
   document.getElementById('admin-lock').style.display = 'flex';
   document.getElementById('admin-content').classList.remove('unlocked');
   document.querySelectorAll('.apanel').forEach(p => p.classList.remove('active'));
