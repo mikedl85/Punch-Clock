@@ -8,6 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
+html,body{max-width:100%;overflow-x:hidden}
+.app{max-width:100%;overflow-x:hidden}
 :root{
   --bg:#0c0c0b;--surface:#141412;--surface2:#1c1c19;--surface3:#252521;
   --border:#2a2a26;--border2:#363630;
@@ -155,6 +157,9 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 .sal-emp-chip{font-family:'DM Mono',monospace;font-size:11px;padding:3px 10px;border-radius:6px}
 .sal-total-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
 .sal-total-row:last-child{border-bottom:none}
+/* EMAIL COPY FLASH */
+.copy-flash{animation:copyFlash 0.4s ease}
+@keyframes copyFlash{0%{background:var(--accent-bg)}50%{background:var(--accent-border)}100%{background:var(--surface2)}}
 /* TIPS */
 .tip-split-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
 .tip-split-row:last-child{border-bottom:none}
@@ -491,6 +496,33 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
     <div class="note-wrap" id="note-wrap">
       <textarea class="note-input" id="punch-note" rows="2" placeholder="Add a note (optional) — e.g. stayed late for cleanup"></textarea>
     </div>
+    <div id="my-account-wrap" style="display:none;margin-top:10px">
+      <button class="btn btn-ghost" onclick="toggleMyAccount()" style="width:100%;font-size:13px">⚙ Change My PIN</button>
+      <div id="my-account-form" style="display:none;margin-top:12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rl);padding:18px">
+        <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin-bottom:14px">Change PIN</div>
+        <div class="fg" style="margin-bottom:10px">
+          <label class="lbl">New PIN (4 digits)</label>
+          <input type="password" id="new-pin-input" maxlength="4" placeholder="••••" style="font-size:20px;letter-spacing:.2em;text-align:center">
+        </div>
+        <div class="fg" style="margin-bottom:14px">
+          <label class="lbl">Confirm New PIN</label>
+          <input type="password" id="confirm-pin-input" maxlength="4" placeholder="••••" style="font-size:20px;letter-spacing:.2em;text-align:center">
+        </div>
+        <button class="btn btn-acc" onclick="changeMyPin()" style="width:100%;margin-bottom:16px">Update PIN</button>
+        <div style="border-top:1px solid var(--border);padding-top:16px">
+          <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin-bottom:12px">Contact Info</div>
+          <div class="fg" style="margin-bottom:10px">
+            <label class="lbl">Email Address</label>
+            <input type="email" id="my-email-input" placeholder="you@example.com" style="font-size:16px">
+          </div>
+          <div class="fg" style="margin-bottom:14px">
+            <label class="lbl">Preferred Name (optional)</label>
+            <input type="text" id="my-nickname-input" placeholder="e.g. Mike" style="font-size:16px">
+          </div>
+          <button class="btn btn-ghost" onclick="saveMyProfile()" style="width:100%">Save Contact Info</button>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="card">
     <span class="lbl">Today's Activity</span>
@@ -577,6 +609,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
     <button class="atab" onclick="showAtab('corrections',this)" id="atab-corrections">Corrections<span class="pending-dot" id="corrections-dot" style="display:none"></span></button>
     <button class="atab" onclick="showAtab('tips',this)">🍜 Tips</button>
     <button class="atab" onclick="showAtab('salary',this)">💰 Salary</button>
+    <button class="atab" onclick="showAtab('email',this)">📧 Email</button>
     <button class="atab" onclick="showAtab('settings',this)">Settings</button>
   </div>
   <div class="apanel active" id="apanel-employees">
@@ -715,6 +748,52 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
     <div class="card">
       <div class="card-head"><span class="card-title">All-Time Totals</span></div>
       <div id="salary-totals"></div>
+    </div>
+  </div>
+
+  <div class="apanel" id="apanel-email">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Generate Schedule Email</span></div>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:20px">Generate a formatted schedule email to copy and send manually from your email client.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rl);padding:20px;text-align:center">
+          <div style="font-size:28px;margin-bottom:8px">📅</div>
+          <div style="font-weight:500;font-size:15px;margin-bottom:4px">Weekly</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:14px">7-day schedule for any week</div>
+          <div class="fg" style="margin-bottom:10px;text-align:left">
+            <label class="lbl">Week starting</label>
+            <input type="date" id="email-week-date">
+          </div>
+          <button class="btn btn-acc" onclick="generateWeekEmail()" style="width:100%">Generate</button>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rl);padding:20px;text-align:center">
+          <div style="font-size:28px;margin-bottom:8px">🗓️</div>
+          <div style="font-weight:500;font-size:15px;margin-bottom:4px">Monthly</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Full month at a glance</div>
+          <div class="fg" style="margin-bottom:10px;text-align:left">
+            <label class="lbl">Month</label>
+            <input type="month" id="email-month-date">
+          </div>
+          <button class="btn btn-acc" onclick="generateMonthEmail()" style="width:100%">Generate</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="email-preview-card" style="display:none">
+      <div class="card-head">
+        <span class="card-title" id="email-preview-title">Email Preview</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-acc btn-sm" onclick="copyEmailBody()">Copy Email</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('email-preview-card').style.display='none'">✕</button>
+        </div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);padding:16px;margin-bottom:12px">
+        <div style="font-size:12px;color:var(--text2);font-family:'DM Mono',monospace;margin-bottom:4px">SUBJECT</div>
+        <div id="email-subject" style="font-size:14px;font-weight:500"></div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);padding:16px">
+        <div style="font-size:12px;color:var(--text2);font-family:'DM Mono',monospace;margin-bottom:10px">BODY</div>
+        <pre id="email-body" style="font-family:'DM Mono',monospace;font-size:13px;white-space:pre-wrap;line-height:1.6;color:var(--text)"></pre>
+      </div>
     </div>
   </div>
 
@@ -1121,7 +1200,10 @@ function renderDots(){
 renderDots();
 function addPin(n){if(currentPin.length>=4||pinReady)return;currentPin+=n;renderDots();if(currentPin.length===4)verifyPin();}
 function delPin(){if(pinReady){currentPin='';pinReady=false;setBtns(false);renderDots();return;}currentPin=currentPin.slice(0,-1);renderDots();}
-function onEmpChange(){currentPin='';pinReady=false;setBtns(false);renderDots();showTodayShiftBanner();}
+function onEmpChange(){currentPin='';pinReady=false;setBtns(false);renderDots();showTodayShiftBanner();
+  document.getElementById('my-account-wrap').style.display='none';
+  document.getElementById('my-account-form').style.display='none';
+}
 function verifyPin(){
   const id=document.getElementById('emp-select').value;
   if(!id){toast('Select your name first','err');resetPin();return;}
@@ -1137,6 +1219,65 @@ function setBtns(on){
   const date=todayStr();
   const isIn = on && id && punches.find(p=>p.empId===id&&p.date===date&&!p.punchOut);
   document.getElementById('note-wrap').className = 'note-wrap'+(isIn?' show':'');
+  // Show My Account only when PIN is verified
+  document.getElementById('my-account-wrap').style.display = on ? 'block' : 'none';
+  if (!on) {
+    document.getElementById('my-account-form').style.display = 'none';
+    document.getElementById('new-pin-input').value = '';
+    document.getElementById('confirm-pin-input').value = '';
+  }
+}
+
+function toggleMyAccount() {
+  const form = document.getElementById('my-account-form');
+  const showing = form.style.display === 'none';
+  form.style.display = showing ? 'block' : 'none';
+  if (showing) {
+    const empId = document.getElementById('emp-select').value;
+    const emp = employees.find(e => e.id === empId);
+    if (emp) {
+      document.getElementById('my-email-input').value = emp.email || '';
+      document.getElementById('my-nickname-input').value = emp.nickname || '';
+    }
+  }
+}
+
+function saveMyProfile() {
+  const empId = document.getElementById('emp-select').value;
+  const emp = employees.find(e => e.id === empId);
+  if (!emp) return;
+  const email    = document.getElementById('my-email-input').value.trim();
+  const nickname = document.getElementById('my-nickname-input').value.trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    toast('Invalid email address', 'err'); return;
+  }
+  emp.email    = email;
+  emp.nickname = nickname;
+  save(); pushEmployees();
+  toast('Profile saved ✓', 'ok');
+}
+
+function changeMyPin() {
+  const empId = document.getElementById('emp-select').value;
+  const emp = employees.find(e => e.id === empId);
+  if (!emp) return;
+  const newPin     = document.getElementById('new-pin-input').value.trim();
+  const confirmPin = document.getElementById('confirm-pin-input').value.trim();
+  if (!/^\d{4}$/.test(newPin))       { toast('PIN must be exactly 4 digits', 'err'); return; }
+  if (newPin !== confirmPin)          { toast('PINs do not match', 'err'); return; }
+  if (employees.find(e => e.pin === newPin && e.id !== empId)) {
+    toast('That PIN is already in use', 'err'); return;
+  }
+  emp.pin = newPin;
+  save(); pushEmployees();
+  // Reset everything
+  document.getElementById('my-account-form').style.display = 'none';
+  document.getElementById('my-account-wrap').style.display = 'none';
+  document.getElementById('new-pin-input').value = '';
+  document.getElementById('confirm-pin-input').value = '';
+  document.getElementById('emp-select').value = '';
+  resetPin();
+  toast('PIN updated ✓ — use your new PIN next time', 'ok');
 }
 function showTodayShiftBanner(){
   const id=document.getElementById('emp-select').value;
@@ -2154,6 +2295,126 @@ async function pushTips(entry) {
 }
 
 // Pull tips in pullAll
+// ── EMAIL GENERATION ─────────────────────────────────────────────────────────
+const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DAYS_LONG  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function generateWeekEmail() {
+  const dateVal = document.getElementById('email-week-date').value;
+  if (!dateVal) { toast('Select a week start date', 'err'); return; }
+  const start = new Date(dateVal + 'T12:00:00');
+  const days  = Array.from({length:7}, (_,i) => addDays(start, i));
+  const startLabel = start.toLocaleDateString('en-CA', {month:'long', day:'numeric', year:'numeric'});
+  const endLabel   = addDays(start,6).toLocaleDateString('en-CA', {month:'long', day:'numeric', year:'numeric'});
+
+  let body = 'Hi team,\n\nHere is your schedule for the week of ' + startLabel + ':\n\n';
+  body += '─'.repeat(42) + '\n';
+
+  days.forEach(day => {
+    const ds = toDateStr(day);
+    const dayShifts = shifts.filter(s => s.date === ds).sort((a,b) => a.start.localeCompare(b.start));
+    const dayName = DAYS_LONG[day.getDay()];
+    const dateStr = day.toLocaleDateString('en-CA', {month:'short', day:'numeric'});
+    if (dayShifts.length) {
+      body += NL + '>> ' + dayName + ', ' + dateStr + NL;
+      dayShifts.forEach(s => {
+        const emp = employees.find(e => e.name === s.employee);
+        const displayName = emp?.nickname || s.employee;
+        const hrs = calcHrs(s.start, s.end).toFixed(1);
+        body += '   * ' + displayName + '  ' + s.start + '-' + s.end + ' (' + hrs + 'h)' + NL;
+      });
+    } else {
+      body += NL + '>> ' + dayName + ', ' + dateStr + NL;
+      body += '   - No shifts scheduled' + NL;
+    }
+  });
+
+  body += NL + '─'.repeat(42) + NL;
+  body += '\nSee the full schedule at: https://punchclock.ramen9000.ca\n';
+  body += '\nQuestions? Reply to this email.\n\nThanks,\nRamen 9000';
+
+  const subject = 'Ramen 9000 Schedule — Week of ' + startLabel;
+  showEmailPreview(subject, body, 'Week of ' + startLabel + ' – ' + endLabel);
+}
+
+function generateMonthEmail() {
+  const monthVal = document.getElementById('email-month-date').value;
+  if (!monthVal) { toast('Select a month', 'err'); return; }
+  const [year, month] = monthVal.split('-').map(Number);
+  const monthName = MONTHS_LONG[month-1] + ' ' + year;
+  const firstDay = new Date(year, month-1, 1);
+  const lastDay  = new Date(year, month, 0);
+
+  // Get all shift days in this month
+  const monthShifts = shifts.filter(s => {
+    const d = new Date(s.date + 'T12:00:00');
+    return d.getFullYear() === year && d.getMonth() === month-1;
+  }).sort((a,b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+
+  let body = 'Hi team,\n\nHere is the full schedule for ' + monthName + ':\n\n';
+  body += '─'.repeat(42) + '\n';
+
+  // Group by date
+  const byDate = {};
+  monthShifts.forEach(s => {
+    if (!byDate[s.date]) byDate[s.date] = [];
+    byDate[s.date].push(s);
+  });
+
+  if (!Object.keys(byDate).length) {
+    body += NL + 'No shifts scheduled for ' + monthName + ' yet.' + NL;
+  } else {
+    Object.entries(byDate).forEach(([date, dayShifts]) => {
+      const d = new Date(date + 'T12:00:00');
+      const dayName = DAYS_LONG[d.getDay()];
+      const dateStr = d.toLocaleDateString('en-CA', {month:'short', day:'numeric'});
+      body += NL + '>> ' + dayName + ', ' + dateStr + NL;
+      dayShifts.forEach(s => {
+        const emp = employees.find(e => e.name === s.employee);
+        const displayName = emp?.nickname || s.employee;
+        const hrs = calcHrs(s.start, s.end).toFixed(1);
+        body += '   * ' + displayName + '  ' + s.start + '-' + s.end + ' (' + hrs + 'h)' + NL;
+      });
+    });
+  }
+
+  body += NL + '─'.repeat(42) + NL;
+  body += '\nSee the full schedule at: https://punchclock.ramen9000.ca\n';
+  body += '\nQuestions? Reply to this email.\n\nThanks,\nRamen 9000';
+
+  const subject = 'Ramen 9000 Schedule — ' + monthName;
+  showEmailPreview(subject, body, monthName);
+}
+
+function showEmailPreview(subject, body, title) {
+  document.getElementById('email-preview-card').style.display = 'block';
+  document.getElementById('email-preview-title').textContent = 'Email Preview — ' + title;
+  document.getElementById('email-subject').textContent = subject;
+  document.getElementById('email-body').textContent = body;
+  document.getElementById('email-preview-card').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function copyEmailBody() {
+  const subject = document.getElementById('email-subject').textContent;
+  const body    = document.getElementById('email-body').textContent;
+  const full    = 'Subject: ' + subject + NL + NL + body;
+  navigator.clipboard.writeText(full).then(() => {
+    toast('Copied to clipboard ✓', 'ok');
+    const el = document.getElementById('email-body');
+    el.classList.remove('copy-flash');
+    void el.offsetWidth;
+    el.classList.add('copy-flash');
+  }).catch(() => {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = full; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('Copied to clipboard ✓', 'ok');
+  });
+}
+
 // ── XLSX IMPORT ───────────────────────────────────────────────────────────────
 function importXlsx(file){
   if(!file)return;
@@ -2565,6 +2826,12 @@ function showAtab(id,btn){
   if(id==='salary') renderSalary();
   if(id==='corrections') renderAdminCorrections();
   if(id==='tips'){ renderTips(); document.getElementById('tip-date').value=new Date().toISOString().slice(0,10); }
+  if(id==='email'){
+    // Default week to this Monday, month to current month
+    const mon = getMonday(new Date());
+    document.getElementById('email-week-date').value = mon.toISOString().slice(0,10);
+    document.getElementById('email-month-date').value = new Date().toISOString().slice(0,7);
+  }
 }
 const dz=document.getElementById('drop-zone');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
