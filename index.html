@@ -29,10 +29,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Sora',
 
 /* LAYOUT */
 .app{display:grid;grid-template-rows:auto 1fr;height:100vh;overflow:hidden}
-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+nav{display:flex;flex-direction:column;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.nav-top{display:flex;align-items:center;justify-content:space-between;padding:14px 24px}
 .logo{font-family:'DM Mono',monospace;font-size:13px;letter-spacing:.12em;color:var(--accent)}
 .logo span{color:var(--text3);margin:0 6px}
-.nav-tabs{display:flex;gap:2px;background:var(--bg);padding:4px;border-radius:var(--r);border:1px solid var(--border)}
+.nav-tabs{display:flex;gap:2px;background:var(--bg);padding:4px;border-radius:0;border:none;border-top:1px solid var(--border)}
 .ntab{padding:8px 20px;border-radius:8px;border:none;font-size:14px;font-family:'Sora',sans-serif;font-weight:500;cursor:pointer;background:transparent;color:var(--text2);transition:all .15s}
 .ntab.active{background:var(--surface3);color:var(--text)}
 .content{overflow-y:auto;padding:24px}
@@ -289,123 +290,162 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 .pending-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-left:6px;vertical-align:middle}
 /* ── MOBILE RESPONSIVE ────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
-  /* Nav */
-  nav{padding:10px 14px;gap:8px}
-  .logo{font-size:11px}
-  #sync-indicator{font-size:9px}
-  .nav-tabs{gap:1px;padding:2px}
-  .ntab{padding:7px 10px;font-size:12px}
+  /* ── NAV: stack logo above tabs ── */
+  nav{padding:0;flex-direction:column;align-items:stretch;gap:0}
+  .nav-top{display:flex;align-items:center;justify-content:space-between;padding:10px 14px}
+  .logo{font-size:12px}
+  #sync-indicator{font-size:10px}
+  .nav-tabs{border-radius:0;border:none;border-top:1px solid var(--border);padding:4px 8px;gap:2px;width:100%;justify-content:stretch}
+  .ntab{flex:1;padding:8px 4px;font-size:12px;text-align:center;border-radius:6px}
 
-  /* Content */
+  /* ── CONTENT ── */
   .content{padding:12px}
-  .card{padding:16px;margin-bottom:12px}
+  .pane{max-width:100%}
+  .card{padding:14px;margin-bottom:12px;overflow-x:auto}
   .card-title{font-size:14px}
+  .card-head{flex-wrap:wrap;gap:8px}
 
-  /* Clock face */
-  .clock-time{font-size:52px}
+  /* ── CLOCK ── */
+  .clock-hero{padding:20px 14px}
+  .clock-time{font-size:56px}
   .clock-date{font-size:13px}
   .tsb-time{font-size:22px}
+  .tsb-hrs{font-size:13px}
 
-  /* Name select */
-  .name-select{font-size:16px;padding:13px 14px}
+  /* ── NAME SELECT ── */
+  .name-select{font-size:16px;padding:13px 14px;margin-bottom:12px}
 
-  /* Numpad — full width, big buttons */
-  .numpad{max-width:100%;gap:10px}
-  .num-btn{padding:18px 10px;font-size:22px}
+  /* ── NUMPAD ── */
+  .numpad{max-width:100%;gap:8px;margin-bottom:14px}
+  .num-btn{padding:20px 8px;font-size:24px;border-radius:var(--r)}
+  .num-btn.del{font-size:16px}
 
-  /* Punch buttons */
-  .punch-btn{padding:16px;font-size:16px}
+  /* ── PUNCH BUTTONS ── */
+  .action-row{gap:8px}
+  .punch-btn{padding:18px;font-size:16px}
 
-  /* Today status rows */
-  .status-row{flex-wrap:wrap;gap:6px;padding:12px 0}
-  .s-name{font-size:15px;min-width:80px}
-  .s-sched{font-size:11px}
-  .s-times{font-size:12px;text-align:left;width:100%}
+  /* ── TODAY STATUS ── */
+  .status-row{flex-wrap:wrap;gap:4px;padding:12px 0}
+  .s-dot{width:9px;height:9px}
+  .s-name{font-size:14px;flex:1}
+  .s-sched{font-size:11px;color:var(--text3)}
+  .s-times{font-size:12px;width:100%;padding-left:21px}
+  .s-hrs{font-size:12px}
+  .flag{font-size:10px;padding:2px 6px}
 
-  /* Admin tabs — scrollable row */
-  .atabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;gap:6px;
-    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  /* ── ADMIN TABS: horizontal scroll ── */
+  .atabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;padding-bottom:2px;gap:6px;margin-bottom:14px}
   .atabs::-webkit-scrollbar{display:none}
-  .atab{white-space:nowrap;padding:8px 14px;font-size:13px;flex-shrink:0}
+  .atab{white-space:nowrap;padding:8px 12px;font-size:12px;flex-shrink:0}
 
-  /* Tables — horizontal scroll */
-  .log-tbl,.sched-tbl{font-size:12px}
-  .log-tbl th,.sched-tbl th{padding:8px 6px;font-size:10px}
-  .log-tbl td,.sched-tbl td{padding:10px 6px;font-size:12px}
+  /* ── TABLES: hide non-essential columns on mobile ── */
+  .log-tbl{font-size:12px;min-width:500px}
+  .log-tbl th,.log-tbl td{padding:9px 5px;font-size:11px}
+  .log-tbl .hide-mobile{display:none}
+  .sched-tbl{font-size:13px}
+  .sched-tbl th,.sched-tbl td{padding:10px 6px}
   .name-td{font-size:13px!important}
-  /* Wrap table in scrollable div — handled via overflow on card */
-  .card{overflow-x:auto}
 
-  /* Forms */
+  /* ── FORMS ── */
   .form-grid{grid-template-columns:1fr}
-  input,select{font-size:16px;padding:12px} /* 16px prevents iOS zoom */
+  input,select{font-size:16px!important;padding:12px 14px}
+  input[type=time],input[type=date]{font-size:14px!important}
+  .editable-time{font-size:13px;width:80px;min-width:80px}
 
-  /* Schedule nav */
-  .sched-nav{gap:8px}
+  /* ── SCHEDULE ── */
+  .view-toggle{width:100%}
+  .vtab{flex:1;padding:7px 4px;font-size:12px;text-align:center}
+  .sched-nav{gap:8px;flex-wrap:wrap}
   .sched-nav-btn{width:36px;height:36px;font-size:18px}
-  .sched-period{font-size:13px}
-  .view-toggle{width:100%;justify-content:stretch}
-  .vtab{flex:1;padding:8px 6px;font-size:13px;text-align:center}
+  .sched-period{font-size:13px;min-width:0;flex:1}
 
-  /* Month grid */
-  .month-grid{grid-template-columns:repeat(7,1fr);gap:2px}
-  .month-cell{min-height:56px;padding:4px}
-  .mc-day{font-size:11px}
-  .mc-shift{font-size:9px;padding:1px 3px}
+  /* Month */
+  .month-grid{gap:2px}
+  .month-cell{min-height:52px;padding:4px}
+  .mc-day{font-size:11px;margin-bottom:3px}
+  .mc-shift{font-size:9px;padding:1px 3px;margin-bottom:2px}
+  .month-dow{font-size:9px;padding:3px 0}
 
   /* Timeline */
-  .tl-row-label{width:56px;font-size:12px;padding:0 6px}
-  .tl-bar{font-size:10px;padding:0 5px;height:28px}
-  .tl-axis-tick{font-size:9px}
+  .tl-wrap{overflow-x:auto}
+  .tl-row-label{width:52px;font-size:11px;padding:0 5px}
+  .tl-row{min-height:50px}
+  .tl-row-track{height:50px}
+  .tl-bar{font-size:10px;height:28px;padding:0 5px}
+  .tl-axis-tick{font-size:8px}
+  .tl-axis{margin-left:52px}
 
-  /* Period banner */
-  .period-banner{flex-direction:column;align-items:flex-start}
+  /* ── PERIOD BANNER ── */
+  .period-banner{flex-direction:column;align-items:flex-start;gap:10px}
   .pb-dates{font-size:14px}
+  .pb-title{font-size:10px}
 
-  /* Summary cards */
+  /* ── SUMMARY CARDS ── */
   .summary-grid{grid-template-columns:1fr 1fr}
   .sc-val{font-size:20px}
+  .sc-sub{font-size:12px}
 
-  /* Correction form */
+  /* ── CORRECTIONS ── */
   .correction-row{flex-direction:column}
-  .modal{padding:20px}
+  .cr-head{flex-wrap:wrap}
+  .cr-actions{flex-wrap:wrap}
+  .modal-overlay{padding:12px}
+  .modal{padding:20px;max-width:100%}
   .modal-row{flex-direction:column}
+  .modal-actions{flex-direction:column}
 
-  /* Salary */
-  .sal-emp-row{flex-wrap:wrap;gap:10px}
-  .sal-rate-wrap{width:100%}
+  /* ── SALARY ── */
+  .sal-emp-row{flex-wrap:wrap;gap:8px}
+  .sal-rate-wrap{width:100%;justify-content:flex-start}
+  .sal-period-head{flex-wrap:wrap;gap:6px}
 
-  /* Shift editor */
-  .shift-editor-grid{grid-template-columns:1fr 1fr auto!important}
-
-  /* Tips */
+  /* ── TIPS ── */
   .tip-chips{gap:6px}
-  .tip-chip{font-size:12px;padding:5px 10px}
+  .tip-chip{font-size:12px;padding:5px 9px}
   .tip-hist-head{flex-wrap:wrap;gap:6px}
+  .tip-hist-total{font-size:14px}
 
-  /* Buttons */
+  /* ── BUTTONS ── */
   .btn{padding:9px 14px;font-size:13px}
-  .btn-sm{padding:5px 10px;font-size:12px}
-
-  /* Export bar */
+  .btn-sm{padding:5px 10px;font-size:11px}
   .export-bar{flex-direction:column;gap:8px;align-items:flex-start}
 
-  /* Lock screen */
-  .lock-icon{font-size:40px}
+  /* ── LOCK SCREEN ── */
+  .admin-lock{min-height:50vh;padding:20px}
+  .lock-icon{font-size:40px;margin-bottom:14px}
   .lock-title{font-size:18px}
+  .lock-sub{font-size:14px}
   .lock-form{max-width:100%}
-  .lock-form input{font-size:18px}
+  .lock-form input{font-size:18px;padding:14px}
 
-  /* Admin bar */
-  .admin-bar{flex-wrap:wrap;gap:8px}
+  /* ── ADMIN BAR ── */
+  .admin-bar{flex-wrap:wrap;gap:8px;padding:10px 12px}
+
+  /* ── SHIFT ADD FORM ── */
+  .shift-editor-grid{grid-template-columns:1fr 1fr!important}
+  .shift-editor-grid .btn{grid-column:1/-1}
 }
+/* PUNCH CONFIRMATION OVERLAY */
+.punch-overlay{position:fixed;inset:0;z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.25s}
+.punch-overlay.show{opacity:1;pointer-events:all}
+.punch-overlay.in-style{background:rgba(8,26,16,0.97)}
+.punch-overlay.out-style{background:rgba(26,8,8,0.97)}
+.punch-overlay-icon{font-size:80px;margin-bottom:20px;animation:popIn 0.35s cubic-bezier(0.34,1.56,0.64,1)}
+.punch-overlay-msg{font-size:44px;font-weight:600;letter-spacing:-0.02em;margin-bottom:10px;text-align:center}
+.punch-overlay-sub{font-family:'DM Mono',monospace;font-size:15px;opacity:.5;text-align:center}
+.punch-overlay.in-style .punch-overlay-msg{color:var(--green)}
+.punch-overlay.out-style .punch-overlay-msg{color:var(--red)}
+@keyframes popIn{0%{transform:scale(0.4);opacity:0}100%{transform:scale(1);opacity:1}}
 </style>
 </head>
 <body>
 <div class="app">
 <nav>
-  <span class="logo">R9000 <span>·</span> PUNCH CLOCK</span>
-  <span id="sync-indicator" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:.06em">⚫ Offline</span>
+  <div class="nav-top">
+    <span class="logo">R9000 <span>·</span> PUNCH CLOCK</span>
+    <span id="sync-indicator" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:.06em">⚫ Offline</span>
+  </div>
   <div class="nav-tabs">
     <button class="ntab active" onclick="showPane('clock',this)">Clock In/Out</button>
     <button class="ntab" onclick="showPane('schedule',this)">Schedule</button>
@@ -707,6 +747,11 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 
 </div></div>
 <div class="toast" id="toast"></div>
+<div class="punch-overlay" id="punch-overlay">
+  <div class="punch-overlay-icon" id="punch-overlay-icon"></div>
+  <div class="punch-overlay-msg" id="punch-overlay-msg"></div>
+  <div class="punch-overlay-sub" id="punch-overlay-sub"></div>
+</div>
 <div class="modal-overlay" id="punch-modal" style="display:none" onclick="if(event.target===this)closePunchModal()">
   <div class="modal">
     <div class="modal-title">Edit Punch Record</div>
@@ -1085,8 +1130,14 @@ function verifyPin(){
   pinReady=true;setBtns(true);
 }
 function resetPin(){currentPin='';pinReady=false;setBtns(false);renderDots();}
-function setBtns(on){document.getElementById('btn-in').disabled=!on;document.getElementById('btn-out').disabled=!on;}
-
+function setBtns(on){
+  document.getElementById('btn-in').disabled=!on;
+  document.getElementById('btn-out').disabled=!on;
+  const id=document.getElementById('emp-select').value;
+  const date=todayStr();
+  const isIn = on && id && punches.find(p=>p.empId===id&&p.date===date&&!p.punchOut);
+  document.getElementById('note-wrap').className = 'note-wrap'+(isIn?' show':'');
+}
 function showTodayShiftBanner(){
   const id=document.getElementById('emp-select').value;
   const banner=document.getElementById('tsb');
@@ -1132,14 +1183,24 @@ function getFlags(rec) {
   return flags;
 }
 
-function setBtns(on) {
-  document.getElementById('btn-in').disabled=!on;
-  document.getElementById('btn-out').disabled=!on;
-  // Show note field only when ready to clock out
-  const id=document.getElementById('emp-select').value;
-  const date=todayStr();
-  const isIn = on && id && punches.find(p=>p.empId===id&&p.date===date&&!p.punchOut);
-  document.getElementById('note-wrap').className = 'note-wrap'+(isIn?' show':'');
+function showPunchOverlay(type, empName, time, hours) {
+  const el    = document.getElementById('punch-overlay');
+  const icon  = document.getElementById('punch-overlay-icon');
+  const msg   = document.getElementById('punch-overlay-msg');
+  const sub   = document.getElementById('punch-overlay-sub');
+  if (type === 'in') {
+    el.className = 'punch-overlay in-style';
+    icon.textContent = '👊';
+    msg.textContent  = "You're In!";
+    sub.textContent  = empName + ' · ' + time;
+  } else {
+    el.className = 'punch-overlay out-style';
+    icon.textContent = '🙌';
+    msg.textContent  = "You're Done!";
+    sub.textContent  = empName + ' · ' + hours + 'h worked';
+  }
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
 }
 
 function punch(type){
@@ -1158,6 +1219,7 @@ function punch(type){
     punches.push(rec);
     save();
     pushPunch(rec);
+    showPunchOverlay('in', emp.name, timeStr, null);
     const lateFlag=rec.flags.find(f=>f.type==='late');
     toast('✓ '+emp.name+' clocked IN at '+timeStr+(lateFlag?' · ⚠ '+lateFlag.msg:''),'ok');
   } else {
@@ -1170,6 +1232,7 @@ function punch(type){
     rec.flags=getFlags(rec);
     save();
     pushPunch(rec);
+    showPunchOverlay('out', emp.name, timeStr, rec.hoursWorked);
     document.getElementById('punch-note').value='';
     const earlyFlag=rec.flags.find(f=>f.type==='early');
     toast('✓ '+emp.name+' clocked OUT · '+rec.hoursWorked+'h'+(earlyFlag?' · ⚠ '+earlyFlag.msg:''),'ok');
@@ -2491,6 +2554,7 @@ function showPane(id,btn){
   if(id==='admin' && !adminUnlocked){
     document.getElementById('admin-lock').style.display='flex';
     document.getElementById('admin-content').classList.remove('unlocked');
+    setTimeout(()=>document.getElementById('admin-pw-input').focus(), 100);
   }
 }
 function showAtab(id,btn){
