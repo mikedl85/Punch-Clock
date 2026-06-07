@@ -100,6 +100,23 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 .s-sched{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3)}
 .s-times{font-family:'DM Mono',monospace;font-size:14px;color:var(--text2);text-align:right}
 .s-hrs{font-family:'DM Mono',monospace;font-size:14px;color:var(--accent);margin-left:8px}
+/* MERGED TODAY CARD */
+.today-row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border)}
+.today-row:last-child{border-bottom:none}
+.today-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot-scheduled{background:var(--border2)}
+.dot-in{background:var(--green);box-shadow:0 0 6px rgba(90,171,122,.5)}
+.dot-done{background:var(--accent)}
+.dot-noshow{background:var(--red);opacity:.7}
+.today-name{font-weight:500;font-size:16px;min-width:70px}
+.today-sched{font-family:'DM Mono',monospace;font-size:13px;color:var(--text3);min-width:110px}
+.today-actual{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2);flex:1}
+.today-status{font-size:12px;font-family:'DM Mono',monospace;padding:3px 10px;border-radius:10px;white-space:nowrap}
+.status-clocked-in{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.status-done{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-border)}
+.status-scheduled{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.status-late{background:#2a1400;color:#e09050;border:1px solid #4a2800}
+.status-noshow{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
 .flag{display:inline-flex;align-items:center;gap:4px;font-family:'DM Mono',monospace;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;margin-left:6px}
 .flag-late{background:#2a1400;color:#e09050;border:1px solid #4a2800;cursor:pointer}
 .flag-early{background:#1a0a2a;color:#a07ae0;border:1px solid #3a1a5a;cursor:pointer}
@@ -529,8 +546,14 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
     </div>
   </div>
   <div class="card">
-    <span class="lbl">Today's Activity</span>
-    <div id="today-list"><div class="empty">No punches yet today.</div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span class="lbl" style="margin-bottom:0">Today — <span id="today-date-label" style="color:var(--text2)"></span></span>
+      <div style="display:flex;gap:4px;background:var(--surface2);padding:3px;border-radius:var(--r);border:1px solid var(--border)">
+        <button id="today-toggle-sched" class="btn btn-sm" onclick="setTodayFilter('scheduled')" style="padding:4px 12px;font-size:12px;background:var(--surface3);color:var(--text)">Scheduled</button>
+        <button id="today-toggle-all" class="btn btn-sm" onclick="setTodayFilter('all')" style="padding:4px 12px;font-size:12px;background:transparent;color:var(--text2)">All</button>
+      </div>
+    </div>
+    <div id="today-list"><div class="empty">No shifts scheduled today.</div></div>
   </div>
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between">
@@ -1436,19 +1459,125 @@ function addManualFlag(punchId, type) {
   toast('Flag added', 'ok');
 }
 
+let todayFilter = 'scheduled'; // 'scheduled' | 'all'
+
+function setTodayFilter(f) {
+  todayFilter = f;
+  const sBtn = document.getElementById('today-toggle-sched');
+  const aBtn = document.getElementById('today-toggle-all');
+  if (sBtn) { sBtn.style.background = f==='scheduled'?'var(--surface3)':'transparent'; sBtn.style.color = f==='scheduled'?'var(--text)':'var(--text2)'; }
+  if (aBtn) { aBtn.style.background = f==='all'?'var(--surface3)':'transparent'; aBtn.style.color = f==='all'?'var(--text)':'var(--text2)'; }
+  renderToday();
+}
+
 function renderToday(){
-  const today=todayStr(),list=document.getElementById('today-list');
-  const recs=punches.filter(p=>p.date===today).sort((a,b)=>a.punchIn.localeCompare(b.punchIn));
-  if(!recs.length){list.innerHTML='<div class="empty">No punches yet today.</div>';return;}
-  list.innerHTML=recs.map(p=>{
-    const dc=!p.punchOut?'dot-in':'dot-done';
-    const sched=p.schedStart?p.schedStart+'–'+p.schedEnd:'—';
-    const times=p.punchOut?p.punchIn+' → '+p.punchOut:p.punchIn+' → open';
-    const hrs=p.hoursWorked?'<span class="s-hrs">'+p.hoursWorked+'h</span>':'';
-    const flags=flagHTML(p.flags||[]);
-    const note=p.note?'<span class="flag flag-note" title="'+p.note+'">📝 note</span>':'';
-    return'<div class="status-row"><div class="s-dot '+dc+'"></div><span class="s-name">'+p.empName+'</span><span class="s-sched">'+sched+'</span><span class="s-times">'+times+hrs+flags+note+'</span></div>';
-  }).join('');
+  const today = todayStr();
+  const list = document.getElementById('today-list');
+  const dateLabel = document.getElementById('today-date-label');
+  if (dateLabel) dateLabel.textContent = new Date().toLocaleDateString('en-CA',{weekday:'long',month:'short',day:'numeric'});
+
+  // Get today's shifts + punches
+  const todayShifts = shifts.filter(s => s.date === today).sort((a,b) => a.start.localeCompare(b.start));
+  const todayPunches = punches.filter(p => p.date === today);
+
+  // Build unified list — start from scheduled shifts, add unscheduled punches
+  const rows = [];
+  const punchedEmps = new Set();
+
+  todayShifts.forEach(s => {
+    const punch = todayPunches.find(p => p.empName.toLowerCase() === s.employee.toLowerCase());
+    const emp = employees.find(e => e.name.toLowerCase() === s.employee.toLowerCase());
+    if (punch) punchedEmps.add(punch.empName.toLowerCase());
+
+    const now = new Date();
+    const nowMins = now.getHours()*60 + now.getMinutes();
+    const schedStartMins = timeToMins(s.start);
+    const schedEndMins = s.end === '00:00' ? 1440 : timeToMins(s.end);
+    const shiftStarted = nowMins >= schedStartMins - 5; // 5 min grace
+
+    let dotClass, statusHTML, actualHTML;
+
+    if (punch && punch.punchIn && !punch.punchOut) {
+      // Currently clocked in
+      dotClass = 'dot-in';
+      statusHTML = '<span class="today-status status-clocked-in">● In</span>';
+      actualHTML = punch.punchIn + ' → now';
+    } else if (punch && punch.punchIn && punch.punchOut) {
+      // Done for the day
+      dotClass = 'dot-done';
+      statusHTML = '<span class="today-status status-done">' + punch.hoursWorked + 'h</span>';
+      actualHTML = punch.punchIn + ' → ' + punch.punchOut;
+    } else if (shiftStarted && nowMins > schedStartMins + 15) {
+      // Should be here but hasn't punched — late/no show
+      dotClass = 'dot-noshow';
+      statusHTML = '<span class="today-status status-noshow">Not in</span>';
+      actualHTML = '—';
+    } else {
+      // Upcoming shift
+      dotClass = 'dot-scheduled';
+      statusHTML = '<span class="today-status status-scheduled">Upcoming</span>';
+      actualHTML = '—';
+    }
+
+    const flags = punch ? flagHTML(punch.flags||[]) : '';
+    const note = punch?.note ? '<span class="flag flag-note" title="'+punch.note+'">📝</span>' : '';
+
+    rows.push(
+      '<div class="today-row">'
+      + '<div class="today-dot '+dotClass+'"></div>'
+      + '<span class="today-name" style="color:'+empColor(s.employee)+'">'+s.employee+'</span>'
+      + '<span class="today-sched">'+s.start+'–'+s.end+'</span>'
+      + '<span class="today-actual">'+actualHTML+flags+note+'</span>'
+      + statusHTML
+      + '</div>'
+    );
+  });
+
+  // If showing all employees, add anyone with no shift today
+  if (todayFilter === 'all') {
+    employees.forEach(emp => {
+      const hasShift = todayShifts.find(s => s.employee.toLowerCase() === emp.name.toLowerCase());
+      if (hasShift) return; // already in rows
+      const punch = todayPunches.find(p => p.empName.toLowerCase() === emp.name.toLowerCase());
+      if (punch) return; // already caught by unscheduled punch block below
+      // Off today — no shift, no punch
+      rows.push(
+        '<div class="today-row" style="opacity:.45">'
+        + '<div class="today-dot dot-scheduled"></div>'
+        + '<span class="today-name" style="color:'+empColor(emp.name)+'">'+emp.name+'</span>'
+        + '<span class="today-sched" style="color:var(--text3)">day off</span>'
+        + '<span class="today-actual">—</span>'
+        + '<span class="today-status status-scheduled">Off</span>'
+        + '</div>'
+      );
+    });
+  }
+
+  // Add any punches with no scheduled shift
+  todayPunches.forEach(p => {
+    if (punchedEmps.has(p.empName.toLowerCase())) return;
+    const dotClass = !p.punchOut ? 'dot-in' : 'dot-done';
+    const statusHTML = !p.punchOut
+      ? '<span class="today-status status-clocked-in">● In</span>'
+      : '<span class="today-status status-done">'+(p.hoursWorked||'?')+'h</span>';
+    const actualHTML = p.punchOut ? p.punchIn+' → '+p.punchOut : p.punchIn+' → now';
+    const flags = flagHTML(p.flags||[]);
+    rows.push(
+      '<div class="today-row">'
+      + '<div class="today-dot '+dotClass+'"></div>'
+      + '<span class="today-name" style="color:'+empColor(p.empName)+'">'+p.empName+'</span>'
+      + '<span class="today-sched" style="color:var(--text3)">no shift</span>'
+      + '<span class="today-actual">'+actualHTML+flags+'</span>'
+      + statusHTML
+      + '</div>'
+    );
+  });
+
+  if (!rows.length) {
+    list.innerHTML = '<div class="empty">No shifts scheduled today.</div>';
+  } else {
+    list.innerHTML = rows.join('');
+  }
 }
 renderToday();
 
