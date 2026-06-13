@@ -182,6 +182,28 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 .copy-flash{animation:copyFlash 0.4s ease}
 @keyframes copyFlash{0%{background:var(--accent-bg)}50%{background:var(--accent-border)}100%{background:var(--surface2)}}
 /* TIPS */
+/* SALES */
+.sales-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.sales-tbl th{text-align:left;padding:8px 10px;color:var(--text3);border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:400}
+.sales-tbl td{padding:10px 10px;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace;font-size:13px}
+.sales-tbl tr:last-child td{border-bottom:none}
+.sales-tbl .name-col{font-family:'Sora',sans-serif;font-weight:500;font-size:14px}
+.labor-good{color:var(--green)}
+.labor-warn{color:#e09050}
+.labor-bad{color:var(--red)}
+.labor-bar-wrap{width:80px;height:6px;background:var(--surface3);border-radius:3px;display:inline-block;vertical-align:middle;margin-left:6px}
+.labor-bar{height:100%;border-radius:3px}
+.sales-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:0}
+.tip-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+.tip-cal-dow{text-align:center;font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);padding:4px 0;text-transform:uppercase}
+.tip-cal-day{min-height:52px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface2);padding:5px;cursor:pointer;transition:all .15s;position:relative}
+.tip-cal-day:hover{border-color:var(--accent);background:var(--accent-bg)}
+.tip-cal-day.has-tips{border-color:var(--green-border);background:var(--green-bg)}
+.tip-cal-day.selected{border-color:var(--accent);background:var(--accent-bg)}
+.tip-cal-day.empty-day{background:transparent;border-color:transparent;cursor:default}
+.tip-cal-day.other-month{opacity:.3}
+.tip-cal-num{font-family:'DM Mono',monospace;font-size:12px;color:var(--text2)}
+.tip-cal-amt{font-family:'DM Mono',monospace;font-size:11px;color:var(--green);font-weight:500;margin-top:2px}
 .tip-split-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
 .tip-split-row:last-child{border-bottom:none}
 .tip-emp-name{font-weight:500;font-size:15px}
@@ -635,6 +657,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
     <button class="atab" onclick="showAtab('logs',this)">Punch Log</button>
     <button class="atab" onclick="showAtab('corrections',this)" id="atab-corrections">Corrections<span class="pending-dot" id="corrections-dot" style="display:none"></span></button>
     <button class="atab" onclick="showAtab('tips',this)">🍜 Tips</button>
+    <button class="atab" onclick="showAtab('sales',this)">📊 Sales</button>
     <button class="atab" onclick="showAtab('salary',this)">💰 Salary</button>
     <button class="atab" onclick="showAtab('email',this)">📧 Email</button>
     <button class="atab" onclick="showAtab('settings',this)">Settings</button>
@@ -679,7 +702,14 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
     <div class="card">
       <div class="card-head">
         <span class="card-title">All Shifts</span>
-        <select id="admin-sched-filter" onchange="renderAdminShifts()" style="width:auto;font-size:11px;padding:4px 10px;font-family:'DM Mono',monospace"><option value="all">All</option></select>
+        <div style="display:flex;gap:8px">
+          <select id="admin-sched-time-filter" onchange="renderAdminShifts()" style="width:auto;font-size:11px;padding:4px 10px;font-family:'DM Mono',monospace">
+            <option value="upcoming">Upcoming</option>
+            <option value="all">All dates</option>
+            <option value="past">Past only</option>
+          </select>
+          <select id="admin-sched-filter" onchange="renderAdminShifts()" style="width:auto;font-size:11px;padding:4px 10px;font-family:'DM Mono',monospace"><option value="all">All staff</option></select>
+        </div>
       </div>
       <div id="admin-sched-list"></div>
     </div>
@@ -730,19 +760,58 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
     </div>
   </div>
 
+  <div class="apanel" id="apanel-sales">
+    <!-- Import -->
+    <div class="card">
+      <div class="card-head"><span class="card-title">Import Clover Sales Report</span></div>
+      <div class="import-zone" id="sales-drop-zone">
+        <input type="file" accept=".csv" onchange="importCloverCSV(this.files[0])">
+        <div class="import-icon">📊</div>
+        <div style="font-size:13px;color:var(--text2)">Drop your Clover Sales Report CSV here, or click to browse</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:4px">Reports → Sales report → Export CSV</div>
+      </div>
+      <div class="import-result" id="sales-import-result"></div>
+    </div>
+    <!-- Period selector -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Daily Performance</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="month" id="sales-month" onchange="renderSalesView()" style="font-size:12px;padding:5px 10px;font-family:'DM Mono',monospace;width:auto">
+          <button class="btn btn-ghost btn-sm" onclick="exportSalesCSV()">Export CSV</button>
+        </div>
+      </div>
+      <div id="sales-daily-table"></div>
+    </div>
+    <!-- Monthly summary -->
+    <div class="card">
+      <div class="card-head"><span class="card-title">Monthly Summary</span></div>
+      <div id="sales-monthly-summary"></div>
+    </div>
+  </div>
+
   <div class="apanel" id="apanel-tips">
     <div class="card">
       <div class="card-head"><span class="card-title">Enter Daily Tips</span></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:flex-end">
-        <div class="fg"><label class="lbl">Date</label>
-          <input type="date" id="tip-date" onchange="previewTips()">
-        </div>
-        <div class="fg"><label class="lbl">Total Tips Collected ($)</label>
-          <input type="number" id="tip-amount" step="0.01" placeholder="0.00" style="font-family:'DM Mono',monospace;font-size:18px" oninput="previewTips()" onchange="previewTips()">
-        </div>
-        <button class="btn btn-acc" onclick="addTips()" style="height:48px">Calculate &amp; Save</button>
+      <div class="fg" style="margin-bottom:14px">
+        <label class="lbl">Month</label>
+        <input type="month" id="tip-month" onchange="renderTipCalendar()" style="font-family:'DM Mono',monospace;font-size:15px;max-width:200px">
       </div>
-      <div id="tip-preview" style="margin-top:16px"></div>
+      <div id="tip-calendar" style="margin-bottom:16px"></div>
+      <div id="tip-day-entry" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rl);padding:16px;margin-bottom:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <span class="lbl" style="margin-bottom:0">Tips for <span id="tip-selected-date" style="color:var(--accent)"></span></span>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('tip-day-entry').style.display='none'">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:flex-end">
+          <div class="fg" style="margin-bottom:0">
+            <label class="lbl">Total Tips Collected ($)</label>
+            <input type="number" id="tip-amount" step="0.01" placeholder="0.00" style="font-family:'DM Mono',monospace;font-size:20px" oninput="previewTips()" onchange="previewTips()">
+          </div>
+          <button class="btn btn-acc" onclick="addTips()" style="height:48px;white-space:nowrap">Save Tips</button>
+        </div>
+        <div id="tip-preview" style="margin-top:12px"></div>
+      </div>
     </div>
     <div class="card">
       <div class="card-head">
@@ -1119,6 +1188,18 @@ async function pullAll() {
       }
     } catch(e) {}
 
+    // Sales
+    try {
+      const remoteSales = await sbFetch('r9k_sales?select=*&order=date.desc');
+      if (remoteSales && remoteSales.length) {
+        salesData = remoteSales.map(s => ({
+          date: s.date, netSales: s.net_sales, grossSales: s.gross_sales,
+          taxes: s.taxes, tips: s.tips, amountCollected: s.amount_collected
+        }));
+        localStorage.setItem('r9k_sales', JSON.stringify(salesData));
+      }
+    } catch(e) {}
+
     // Corrections
     try {
       const remoteCr = await sbFetch('r9k_corrections?select=*&order=submitted_at.desc');
@@ -1195,6 +1276,8 @@ let shifts = JSON.parse(localStorage.getItem('r9k_shifts')||'null')||[{"date":"2
 let punches = JSON.parse(localStorage.getItem('r9k_punches')||'[]');
 let corrections = JSON.parse(localStorage.getItem('r9k_corrections')||'[]');
 let tips = JSON.parse(localStorage.getItem('r9k_tips')||'[]');
+let salesData = JSON.parse(localStorage.getItem('r9k_sales')||'[]');
+// salesData: [{date, netSales, grossSales, taxes, tips, amountCollected}]
 let currentPin='', pinReady=false;
 let schedView='day', schedCursor=new Date();
 let editingPunchId = null;
@@ -1892,21 +1975,46 @@ function addShift(){
   shifts.sort((a,b)=>a.date.localeCompare(b.date));
   save();pushShifts();renderAdminShifts();toast('Shift added','ok');
 }
+function copyShiftNextDay(date, emp) {
+  const s = shifts.find(x => x.date===date && x.employee===emp);
+  if (!s) return;
+  const nextDate = addDays(new Date(date+'T12:00:00'), 1).toLocaleDateString('en-CA');
+  // Check if shift already exists for next day
+  if (shifts.find(x => x.date===nextDate && x.employee===emp)) {
+    if (!confirm(emp+' already has a shift on '+fmtDate(nextDate)+'. Replace it?')) return;
+    shifts = shifts.filter(x => !(x.date===nextDate && x.employee===emp));
+  }
+  shifts.push({date:nextDate, employee:emp, start:s.start, end:s.end});
+  shifts.sort((a,b)=>a.date.localeCompare(b.date));
+  save(); pushShifts(); renderAdminShifts();
+  toast(emp+' shift copied to '+fmtDate(nextDate),'ok');
+}
+
 function removeShift(date,emp){
   shifts=shifts.filter(s=>!(s.date===date&&s.employee===emp));
-  save();pushShifts();renderAdminShifts();
+  save();
+  // DELETE from Supabase directly
+  const id = date+'_'+emp.toLowerCase();
+  sbFetch('r9k_shifts?id=eq.'+encodeURIComponent(id), {
+    method:'DELETE', prefer:'', headers:{'Prefer':''}
+  }).catch(e=>console.warn('Delete shift failed:',e));
+  renderAdminShifts();
+  toast('Shift removed','ok');
 }
 function renderAdminShifts(){
   const filter=document.getElementById('admin-sched-filter')?.value||'all';
+  const timeFilter=document.getElementById('admin-sched-time-filter')?.value||'upcoming';
   const list=document.getElementById('admin-sched-list');
   const nm=filter==='all'?null:employees.find(e=>e.id===filter)?.name;
-  const rows=filter==='all'?shifts:shifts.filter(s=>s.employee===nm);
+  let rows=filter==='all'?shifts:shifts.filter(s=>s.employee===nm);
   const today=todayStr();
-  const upcoming=rows.filter(s=>s.date>=today).slice(0,80);
-  if(!upcoming.length){list.innerHTML='<div class="empty">No upcoming shifts.</div>';return;}
+  if(timeFilter==='upcoming') rows=rows.filter(s=>s.date>=today);
+  rows=[...rows].sort((a,b)=>timeFilter==='past'?b.date.localeCompare(a.date):a.date.localeCompare(b.date));
+  rows=rows.slice(0,100);
+  if(!rows.length){list.innerHTML='<div class="empty">'+(timeFilter==='past'?'No past shifts.':'No upcoming shifts.')+'</div>';return;}
   list.innerHTML=`<table class="sched-tbl">
     <thead><tr><th>Date</th><th>Employee</th><th>Start</th><th>End</th><th>Hrs</th><th></th></tr></thead>
-    <tbody>`+upcoming.map(s=>{
+    <tbody>`+rows.map(s=>{
       const hrs=calcHrs(s.start,s.end).toFixed(1);
       return`<tr id="srow-${s.date}-${s.employee}">
         <td>${fmtDate(s.date)}</td>
@@ -1920,7 +2028,10 @@ function renderAdminShifts(){
           onkeydown="if(event.key==='Enter')this.blur()"
           title="Click to edit — use 24h format e.g. 22:00"></td>
         <td style="color:var(--accent)" id="hrs-${s.date}-${s.employee}">${hrs}h</td>
-        <td><button class="btn btn-danger btn-sm" onclick="removeShift('${s.date}','${s.employee}')">×</button></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-ghost btn-sm" onclick="copyShiftNextDay('${s.date}','${s.employee}')" title="Copy to next day" style="margin-right:4px">+1</button>
+          <button class="btn btn-danger btn-sm" onclick="removeShift('${s.date}','${s.employee}')">×</button>
+        </td>
       </tr>`;
     }).join('')+`</tbody></table>`;
 }
@@ -1976,22 +2087,46 @@ function renderSalaryRates() {
   const el = document.getElementById('salary-rates');
   if (!el) return;
   if (!employees.length) { el.innerHTML='<div class="empty">No employees.</div>'; return; }
-  el.innerHTML = employees.map(emp => `
-    <div class="sal-emp-row">
-      <div class="sal-emp-left">
-        <span class="sal-emp-name" style="color:${empColor(emp.name)}">${emp.name}</span>
-        <span class="sal-emp-meta">ID: ${emp.id}</span>
-      </div>
-      <div class="sal-rate-wrap">
-        <span style="font-size:12px;color:var(--text2)">$/hr</span>
-        <input class="sal-rate-input input" type="number" step="0.50" value="${emp.rate}"
-          onchange="updateRate('${emp.id}', this.value)"
-          style="width:90px;font-family:'DM Mono',monospace;font-size:14px;padding:6px 10px;text-align:right">
-        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2)" id="rate-preview-${emp.id}">
-          ~$${(emp.rate * 40).toFixed(0)}/wk est.
-        </span>
-      </div>
-    </div>`).join('');
+  el.innerHTML = employees.map(emp => {
+    const tipsOn = emp.tipsEligible !== false; // default true
+    return '<div class="sal-emp-row">'
+      +'<div class="sal-emp-left">'
+      +'<span class="sal-emp-name" style="color:'+empColor(emp.name)+'">'+emp.name+'</span>'
+      +'<span class="sal-emp-meta">ID: '+emp.id+'</span>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+      // Tips toggle
+      +'<div style="display:flex;align-items:center;gap:6px">'
+      +'<span style="font-size:12px;color:var(--text2)">Tips</span>'
+      +'<label style="position:relative;display:inline-block;width:38px;height:22px;cursor:pointer">'
+      +'<input type="checkbox" '+(tipsOn?'checked':'')
+      +' data-empid="'+emp.id+'" onchange="toggleTipsEligible(this.getAttribute(\'data-empid\'),this.checked)"'
+      +' style="opacity:0;width:0;height:0;position:absolute">'
+      +'<span style="position:absolute;inset:0;background:'+(tipsOn?'var(--green)':'var(--border2)')
+      +';border-radius:22px;transition:.2s">'
+      +'<span style="position:absolute;left:'+(tipsOn?'18':'2')+'px;top:2px;width:18px;height:18px;background:white;border-radius:50%;transition:.2s"></span>'
+      +'</span></label>'
+      +'</div>'
+      // Rate input
+      +'<div class="sal-rate-wrap">'
+      +'<span style="font-size:12px;color:var(--text2)">$/hr</span>'
+      +'<input class="sal-rate-input input" type="number" step="0.50" value="'+emp.rate+'"'
+      +' data-rateid="'+emp.id+'" onchange="updateRate(this.getAttribute(\'data-rateid\'),this.value)"'
+      +' style="width:90px;font-family:monospace;font-size:14px;padding:6px 10px;text-align:right">'
+      +'<span style="font-family:monospace;font-size:11px;color:var(--text2)" id="rate-preview-'+emp.id+'">'
+      +'~$'+(emp.rate*40).toFixed(0)+'/wk est.</span>'
+      +'</div>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function toggleTipsEligible(empId, val) {
+  const emp = employees.find(e=>e.id===empId);
+  if (!emp) return;
+  emp.tipsEligible = val;
+  save(); pushEmployees(); renderSalaryRates();
+  toast(emp.name+' tips '+(val?'enabled':'disabled'),'ok');
 }
 
 function updateRate(empId, val) {
@@ -2333,14 +2468,310 @@ async function pushCorrection(cr) {
   } catch(e) { console.warn('Push correction failed:', e.message); }
 }
 
+// ── SALES / CLOVER IMPORT ────────────────────────────────────────────────────
+function saveSales() {
+  localStorage.setItem('r9k_sales', JSON.stringify(salesData));
+}
+
+function importCloverCSV(file) {
+  if (!file) return;
+  const res = document.getElementById('sales-import-result');
+  res.style.display = 'block'; res.className = 'import-result';
+  res.textContent = 'Parsing Clover report…';
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = e.target.result;
+      const lines = text.split('\n').map(l => l.replace(/\r$/, ''));
+      // Find the header row with dates
+      let headerIdx = -1, headers = [];
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].startsWith(',Total,')) {
+          headerIdx = i;
+          headers = lines[i].split(',').map(h => h.trim());
+          break;
+        }
+      }
+      if (headerIdx < 0) throw new Error('Could not find data table in CSV');
+      // Parse date columns (skip index 0 = empty, 1 = Total)
+      const dateCols = [];
+      for (let c = 2; c < headers.length; c++) {
+        const raw = headers[c];
+        if (!raw) continue;
+        // Parse "Jun 7", "Jun 13" etc — need to infer year
+        const year = new Date().getFullYear();
+        const d = new Date(raw + ', ' + year);
+        if (!isNaN(d)) {
+          dateCols.push({ col: c, date: d.toLocaleDateString('en-CA') });
+        }
+      }
+      if (!dateCols.length) throw new Error('No date columns found');
+      // Extract rows by label
+      const rowMap = {};
+      for (let i = headerIdx + 1; i < lines.length; i++) {
+        const cells = parseCSVLine(lines[i]);
+        if (!cells[0]) continue;
+        const label = cells[0].toLowerCase().trim();
+        rowMap[label] = cells;
+      }
+      // Build per-day records
+      let imported = 0, autoTips = 0;
+      dateCols.forEach(({ col, date }) => {
+        const getVal = (label) => {
+          const row = rowMap[label];
+          if (!row || !row[col]) return 0;
+          return parseFloat(row[col].replace(/[$,]/g,'')) || 0;
+        };
+        const netSales      = getVal('net sales');
+        const grossSales    = getVal('gross sales');
+        const taxes         = getVal('taxes');
+        const tipAmt        = getVal('tips');
+        const amtCollected  = getVal('amount collected');
+        if (netSales === 0 && tipAmt === 0) return; // skip empty days
+        // Upsert into salesData
+        salesData = salesData.filter(s => s.date !== date);
+        salesData.push({ date, netSales, grossSales, taxes, tips: tipAmt, amountCollected: amtCollected });
+        imported++;
+        // Auto-create tip split if tips > 0 and punches exist for this day
+        if (tipAmt > 0) {
+          const result = calcTipSplit(date, tipAmt);
+          if (result) {
+            tips = tips.filter(t => t.date !== date);
+            tips.push({
+              id: Date.now() + Math.random(),
+              date, totalTips: tipAmt,
+              totalHrs: result.totalHrs, ratePerHr: result.ratePerHr,
+              split: result.split, createdAt: new Date().toISOString(),
+              source: 'clover'
+            });
+            autoTips++;
+          }
+        }
+      });
+      salesData.sort((a,b) => a.date.localeCompare(b.date));
+      saveSales();
+      saveTips();
+      // Push to Supabase
+      salesData.forEach(s => pushSalesDay(s));
+      res.className = 'import-result ok';
+      res.textContent = '✓ Imported ' + imported + ' days' + (autoTips ? ' · ' + autoTips + ' tip splits auto-created' : '');
+      renderSalesView();
+      if (autoTips) renderTips();
+      toast(imported + ' days imported from Clover ✓', 'ok');
+    } catch(err) {
+      res.className = 'import-result err';
+      res.textContent = 'Parse error: ' + err.message;
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSVLine(line) {
+  // Handle quoted fields
+  const result = [];
+  let cur = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQuote = !inQuote; }
+    else if (c === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function laborPct(laborCost, netSales) {
+  if (!netSales || netSales === 0) return null;
+  return (laborCost / netSales * 100);
+}
+
+function laborClass(pct) {
+  if (pct === null) return '';
+  if (pct <= 30) return 'labor-good';
+  if (pct <= 35) return 'labor-warn';
+  return 'labor-bad';
+}
+
+function getDayLaborCost(date) {
+  const dayPunches = punches.filter(p => p.date === date && p.hoursWorked);
+  return dayPunches.reduce((s,p) => s + parseFloat(p.hoursWorked) * p.rate, 0);
+}
+
+function renderSalesView() {
+  const monthEl = document.getElementById('sales-month');
+  if (!monthEl) return;
+  if (!monthEl.value) monthEl.value = new Date().toISOString().slice(0,7);
+  const [y, m] = monthEl.value.split('-').map(Number);
+  const tbl = document.getElementById('sales-daily-table');
+  const sum = document.getElementById('sales-monthly-summary');
+  if (!tbl) return;
+
+  // Filter to selected month
+  const monthSales = salesData.filter(s => {
+    const d = new Date(s.date + 'T12:00:00');
+    return d.getFullYear() === y && d.getMonth() === m-1;
+  }).sort((a,b) => a.date.localeCompare(b.date));
+
+  if (!monthSales.length) {
+    tbl.innerHTML = '<div class="empty">No sales data for this month. Import a Clover report.</div>';
+    if (sum) sum.innerHTML = '';
+    return;
+  }
+
+  // Build table
+  let html = '<div style="overflow-x:auto"><table class="sales-tbl"><thead><tr>'
+    + '<th>Date</th><th>Net Sales</th><th>Tips</th><th>Taxes</th>'
+    + '<th>Labor Cost</th><th>Labor %</th><th>Amount Collected</th>'
+    + '</tr></thead><tbody>';
+
+  let totSales=0, totTips=0, totTax=0, totLabor=0;
+
+  monthSales.forEach(s => {
+    const labor = getDayLaborCost(s.date);
+    const pct = laborPct(labor, s.netSales);
+    const pctStr = pct !== null ? pct.toFixed(1)+'%' : '—';
+    const pctCls = laborClass(pct);
+    const barW = pct !== null ? Math.min(100,pct).toFixed(0) : 0;
+    const barColor = pct === null ? '' : pct <= 30 ? 'var(--green)' : pct <= 35 ? '#e09050' : 'var(--red)';
+    const tipEntry = tips.find(t => t.date === s.date);
+    const tipBadge = tipEntry ? ' <span style="font-size:10px;color:var(--green);font-family:monospace">✓ split</span>' : '';
+    totSales += s.netSales; totTips += s.tips; totTax += s.taxes; totLabor += labor;
+    html += '<tr>'
+      + '<td class="name-col">'+fmtDate(s.date)+'</td>'
+      + '<td>$'+s.netSales.toFixed(2)+'</td>'
+      + '<td>$'+s.tips.toFixed(2)+tipBadge+'</td>'
+      + '<td>$'+s.taxes.toFixed(2)+'</td>'
+      + '<td>$'+labor.toFixed(2)+'</td>'
+      + '<td class="'+pctCls+'">'+pctStr
+        +(pct!==null?'<span class="labor-bar-wrap"><span class="labor-bar" style="width:'+barW+'%;background:'+barColor+'"></span></span>':'')
+        +'</td>'
+      + '<td>$'+s.amountCollected.toFixed(2)+'</td>'
+      + '</tr>';
+  });
+
+  // Totals row
+  const totPct = laborPct(totLabor, totSales);
+  html += '<tr style="font-weight:600;border-top:2px solid var(--border2)">'
+    + '<td>Total</td>'
+    + '<td>$'+totSales.toFixed(2)+'</td>'
+    + '<td>$'+totTips.toFixed(2)+'</td>'
+    + '<td>$'+totTax.toFixed(2)+'</td>'
+    + '<td>$'+totLabor.toFixed(2)+'</td>'
+    + '<td class="'+laborClass(totPct)+'">'+(totPct!==null?totPct.toFixed(1)+'%':'—')+'</td>'
+    + '<td>$'+(totSales+totTips+totTax).toFixed(2)+'</td>'
+    + '</tr>';
+
+  html += '</tbody></table></div>';
+  tbl.innerHTML = html;
+
+  // Summary cards
+  if (sum) {
+    const avgLabor = totPct ? totPct.toFixed(1) : '—';
+    sum.innerHTML = '<div class="sales-summary-grid">'
+      + '<div class="summary-card"><div class="sc-label">Net Sales</div><div class="sc-val">$'+totSales.toFixed(0)+'</div></div>'
+      + '<div class="summary-card"><div class="sc-label">Tips Collected</div><div class="sc-val">$'+totTips.toFixed(0)+'</div></div>'
+      + '<div class="summary-card"><div class="sc-label">Total Labor</div><div class="sc-val">$'+totLabor.toFixed(0)+'</div></div>'
+      + '<div class="summary-card"><div class="sc-label">Avg Labor %</div><div class="sc-val '+laborClass(totPct)+'">'+avgLabor+'%</div></div>'
+      + '<div class="summary-card"><div class="sc-label">Days Tracked</div><div class="sc-val">'+monthSales.length+'</div></div>'
+      + '</div>';
+  }
+}
+
+function exportSalesCSV() {
+  if (!salesData.length) { toast('No sales data to export','err'); return; }
+  let csv = 'Date,Net Sales,Tips,Taxes,Amount Collected,Labor Cost,Labor %\n';
+  [...salesData].sort((a,b)=>a.date.localeCompare(b.date)).forEach(s => {
+    const labor = getDayLaborCost(s.date);
+    const pct = laborPct(labor, s.netSales);
+    csv += '"'+s.date+'","'+s.netSales.toFixed(2)+'","'+s.tips.toFixed(2)+'","'
+      +s.taxes.toFixed(2)+'","'+s.amountCollected.toFixed(2)+'","'
+      +labor.toFixed(2)+'",'+(pct!==null?pct.toFixed(1)+'%':'--')+'"\n';
+
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = 'R9000_Sales_'+todayStr()+'.csv';
+  a.click();
+  toast('Sales CSV downloaded','ok');
+}
+
+async function pushSalesDay(s) {
+  try {
+    await sbFetch('r9k_sales', {
+      method:'POST',
+      headers:{'Prefer':'resolution=merge-duplicates,return=representation'},
+      body: JSON.stringify({
+        id: s.date,
+        date: s.date,
+        net_sales: s.netSales,
+        gross_sales: s.grossSales,
+        taxes: s.taxes,
+        tips: s.tips,
+        amount_collected: s.amountCollected
+      })
+    });
+  } catch(e) { console.warn('Push sales failed:',e.message); }
+}
+
+// Pull sales in pullAll
 // ── TIPS ─────────────────────────────────────────────────────────────────────
 function saveTips() {
   localStorage.setItem('r9k_tips', JSON.stringify(tips));
 }
 
+let selectedTipDate = null;
+
+function renderTipCalendar() {
+  const monthVal = document.getElementById('tip-month').value;
+  const cal = document.getElementById('tip-calendar');
+  if (!monthVal || !cal) return;
+  const [y, m] = monthVal.split('-').map(Number);
+  const firstDay = new Date(y, m-1, 1);
+  const lastDay  = new Date(y, m, 0);
+  const startDow = (firstDay.getDay()+6)%7; // Mon=0
+  const today = todayStr();
+  const DOWS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html = '<div class="tip-cal-grid">';
+  DOWS.forEach(d => html += '<div class="tip-cal-dow">'+d+'</div>');
+  for(let i=0;i<startDow;i++) html += '<div class="tip-cal-day empty-day"></div>';
+  for(let day=1;day<=lastDay.getDate();day++){
+    const ds = y+'-'+String(m).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    const tipEntry = tips.find(t=>t.date===ds);
+    const isSelected = ds===selectedTipDate;
+    const isToday = ds===today;
+    html += '<div class="tip-cal-day'+(tipEntry?' has-tips':'')+(isSelected?' selected':'')
+      +'" data-date="'+ ds +'" onclick="handleTipDayClick(this)">'
+      +'<div class="tip-cal-num" style="'+(isToday?'color:var(--accent)':'')+'">'+day+'</div>'
+      +(tipEntry?'<div class="tip-cal-amt">$'+tipEntry.totalTips.toFixed(0)+'</div>':'')
+      +'</div>';
+  }
+  html += '</div>';
+  cal.innerHTML = html;
+}
+
+function handleTipDayClick(el) { selectTipDay(el.getAttribute("data-date")); }
+
+function selectTipDay(date) {
+  selectedTipDate = date;
+  const entry = document.getElementById('tip-day-entry');
+  const label = document.getElementById('tip-selected-date');
+  const amtInput = document.getElementById('tip-amount');
+  if (label) label.textContent = fmtDate(date);
+  if (entry) entry.style.display = 'block';
+  // Pre-fill if tip already exists for this day
+  const existing = tips.find(t=>t.date===date);
+  if (amtInput) amtInput.value = existing ? existing.totalTips : '';
+  previewTips();
+  renderTipCalendar(); // re-render to show selection
+}
+
 function calcTipSplit(date, totalTips) {
-  // Get all punches for this date that have hours worked
-  const dayPunches = punches.filter(p => p.date === date && p.hoursWorked);
+  // Only include tips-eligible employees
+  const dayPunches = punches.filter(p => {
+    if (!p.hoursWorked) return false;
+    const emp = employees.find(e => e.name.toLowerCase()===p.empName.toLowerCase());
+    return emp ? emp.tipsEligible !== false : true; // default eligible
+  }).filter(p => p.date === date);
   if (!dayPunches.length) return null;
   const totalHrs = dayPunches.reduce((s, p) => s + parseFloat(p.hoursWorked), 0);
   if (totalHrs === 0) return null;
@@ -2355,9 +2786,10 @@ function calcTipSplit(date, totalTips) {
 }
 
 function previewTips() {
-  const date = document.getElementById('tip-date').value;
+  const date = selectedTipDate;
   const amt  = parseFloat(document.getElementById('tip-amount').value) || 0;
   const el   = document.getElementById('tip-preview');
+  if (!el) return;
   if (!date || !amt) { el.innerHTML=''; return; }
   const result = calcTipSplit(date, amt);
   if (!result) {
@@ -2377,9 +2809,9 @@ function previewTips() {
 }
 
 function addTips() {
-  const date = document.getElementById('tip-date').value;
+  const date = selectedTipDate;
   const amt  = parseFloat(document.getElementById('tip-amount').value);
-  if (!date) { toast('Select a date', 'err'); return; }
+  if (!date) { toast('Select a day on the calendar', 'err'); return; }
   if (!amt || amt <= 0) { toast('Enter tip amount', 'err'); return; }
   const result = calcTipSplit(date, amt);
   if (!result) { toast('No punch records found for this date', 'err'); return; }
@@ -2396,11 +2828,14 @@ function addTips() {
   saveTips();
   pushTips(entry);
   renderTips();
-  toast(`Tips saved — $${amt.toFixed(2)} split across ${result.split.length} employees ✓`, 'ok');
+  document.getElementById('tip-day-entry').style.display='none';
+  selectedTipDate = null;
+  toast('Tips saved — $'+amt.toFixed(2)+' split across '+result.split.length+' employees ✓','ok');
 }
 
 function renderTips() {
   previewTips();
+  renderTipCalendar();
   renderTipHistory();
   renderTipTotals();
 }
@@ -3079,7 +3514,16 @@ function showAtab(id,btn){
   if(btn)btn.classList.add('active');
   if(id==='salary') renderSalary();
   if(id==='corrections') renderAdminCorrections();
-  if(id==='tips'){ renderTips(); document.getElementById('tip-date').value=new Date().toISOString().slice(0,10); }
+  if(id==='sales'){
+    const sm = document.getElementById('sales-month');
+    if (sm && !sm.value) sm.value = new Date().toISOString().slice(0,7);
+    renderSalesView();
+  }
+  if(id==='tips'){
+    const monthEl=document.getElementById('tip-month');
+    if(monthEl&&!monthEl.value) monthEl.value=new Date().toISOString().slice(0,7);
+    renderTips();
+  }
   if(id==='email'){
     // Default week to this Monday, month to current month
     const mon = getMonday(new Date());
@@ -3091,6 +3535,12 @@ const dz=document.getElementById('drop-zone');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
 dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');importXlsx(e.dataTransfer.files[0]);});
+const sdz=document.getElementById('sales-drop-zone');
+if(sdz){
+  sdz.addEventListener('dragover',e=>{e.preventDefault();sdz.classList.add('drag');});
+  sdz.addEventListener('dragleave',()=>sdz.classList.remove('drag'));
+  sdz.addEventListener('drop',e=>{e.preventDefault();sdz.classList.remove('drag');importCloverCSV(e.dataTransfer.files[0]);});
+}
 
 // Init
 refreshSelects();
