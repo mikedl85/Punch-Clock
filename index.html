@@ -194,6 +194,27 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 .labor-bar-wrap{width:80px;height:6px;background:var(--surface3);border-radius:3px;display:inline-block;vertical-align:middle;margin-left:6px}
 .labor-bar{height:100%;border-radius:3px}
 .sales-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:0}
+/* SALES EDIT TOGGLE */
+.sales-edit-cell{font-family:'DM Mono',monospace;font-size:13px}
+.sales-edit-input{font-family:'DM Mono',monospace;font-size:13px;padding:3px 6px;width:90px;border-radius:5px;border:1px solid var(--accent);background:var(--surface2);color:var(--text)}
+.edit-mode-active .sales-edit-cell{cursor:pointer}
+/* SALES CHART */
+.chart-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.chart-view-btn{padding:5px 14px;border-radius:6px;border:1px solid var(--border);font-size:12px;font-family:'Sora',sans-serif;cursor:pointer;background:transparent;color:var(--text2);transition:all .15s}
+.chart-view-btn.active{background:var(--accent-bg);border-color:var(--accent-border);color:var(--accent)}
+#sales-chart-canvas{width:100%;height:260px;display:block}
+/* VISUAL SCHEDULE GRID */
+.vsched-wrap{overflow-x:auto;margin-bottom:0}
+.vsched-table{border-collapse:collapse;min-width:600px;width:100%}
+.vsched-table th{background:var(--surface2);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.06em;color:var(--text3);text-transform:uppercase;border:1px solid var(--border);padding:4px 6px;text-align:center;font-weight:400;white-space:nowrap}
+.vsched-table th.day-head{background:var(--surface3);color:var(--text2);font-size:11px}
+.vsched-table th.emp-head{background:var(--surface3);color:var(--accent);font-size:11px;min-width:48px}
+.vsched-time-col{background:var(--surface2);font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);border:1px solid var(--border);padding:2px 6px;text-align:right;white-space:nowrap;width:40px}
+.vsched-cell{border:1px solid var(--border);width:36px;height:22px;cursor:crosshair;transition:background .05s;user-select:none;-webkit-user-select:none;position:relative}
+.vsched-cell.shift-on{border-color:transparent}
+.vsched-cell.drag-preview{opacity:.7}
+.vsched-nav{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.vsched-period{font-family:'DM Mono',monospace;font-size:13px;flex:1}
 .tip-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
 .tip-cal-dow{text-align:center;font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);padding:4px 0;text-transform:uppercase}
 .tip-cal-day{min-height:52px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface2);padding:5px;cursor:pointer;transition:all .15s;position:relative}
@@ -674,6 +695,25 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
     <div class="card"><div class="card-head"><span class="card-title">Current Employees</span></div><div id="emp-list"></div></div>
   </div>
   <div class="apanel" id="apanel-ashifts">
+    <!-- VISUAL SCHEDULE GRID -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Visual Schedule</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="vsched-hint" style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">Click and drag to set shifts</span>
+        </div>
+      </div>
+      <div class="vsched-nav">
+        <button class="sched-nav-btn" onclick="navVSched(-1)">‹</button>
+        <span class="vsched-period" id="vsched-period"></span>
+        <button class="sched-nav-btn" onclick="navVSched(1)">›</button>
+        <button class="btn btn-ghost btn-sm" onclick="goVSchedToday()">Today</button>
+        <select id="vsched-emp-filter" onchange="renderVSched()" style="width:auto;font-size:11px;padding:4px 8px;font-family:'DM Mono',monospace">
+          <option value="all">All staff</option>
+        </select>
+      </div>
+      <div class="vsched-wrap"><div id="vsched-grid"></div></div>
+    </div>
     <div class="card">
       <div class="card-head"><span class="card-title">Import Schedule (.xlsx)</span></div>
       <div class="import-zone" id="drop-zone">
@@ -772,12 +812,34 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
       </div>
       <div class="import-result" id="sales-import-result"></div>
     </div>
-    <!-- Period selector -->
+    <!-- Chart -->
     <div class="card">
+      <div class="card-head"><span class="card-title">Sales vs Labor</span></div>
+      <div class="chart-controls">
+        <button class="chart-view-btn active" onclick="setChartView('month',this)">Month</button>
+        <button class="chart-view-btn" onclick="setChartView('week',this)">Week</button>
+        <button class="chart-view-btn" onclick="setChartView('custom',this)">Custom</button>
+        <input type="month" id="chart-month" onchange="renderSalesChart()" style="font-size:12px;padding:4px 8px;font-family:'DM Mono',monospace;width:auto">
+        <div id="chart-custom-range" style="display:none;gap:6px;align-items:center">
+          <input type="date" id="chart-from" onchange="renderSalesChart()" style="font-size:12px;padding:4px 8px;font-family:'DM Mono',monospace;width:auto">
+          <span style="color:var(--text3);font-size:12px">→</span>
+          <input type="date" id="chart-to" onchange="renderSalesChart()" style="font-size:12px;padding:4px 8px;font-family:'DM Mono',monospace;width:auto">
+        </div>
+      </div>
+      <canvas id="sales-chart-canvas"></canvas>
+      <div id="chart-legend" style="display:flex;gap:16px;margin-top:10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2)">
+        <span><span style="display:inline-block;width:12px;height:12px;background:var(--accent);border-radius:2px;margin-right:4px;vertical-align:middle"></span>Net Sales ($)</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:var(--green);border-radius:2px;margin-right:4px;vertical-align:middle"></span>Labor Cost ($)</span>
+        <span><span style="display:inline-block;width:12px;height:3px;background:var(--red);margin-right:4px;vertical-align:middle"></span>Labor % (right axis)</span>
+      </div>
+    </div>
+    <!-- Daily table -->
+    <div class="card" id="sales-table-card">
       <div class="card-head">
         <span class="card-title">Daily Performance</span>
         <div style="display:flex;gap:8px;align-items:center">
           <input type="month" id="sales-month" onchange="renderSalesView()" style="font-size:12px;padding:5px 10px;font-family:'DM Mono',monospace;width:auto">
+          <button class="btn btn-ghost btn-sm" id="sales-edit-toggle" onclick="toggleSalesEdit()">✏ Edit</button>
           <button class="btn btn-ghost btn-sm" onclick="exportSalesCSV()">Export CSV</button>
         </div>
       </div>
@@ -2536,14 +2598,16 @@ function importCloverCSV(file) {
         if (tipAmt > 0) {
           const result = calcTipSplit(date, tipAmt);
           if (result) {
-            tips = tips.filter(t => t.date !== date);
-            tips.push({
-              id: Date.now() + Math.random(),
+            const entry = {
+              id: Date.now() + Math.random() + '',
               date, totalTips: tipAmt,
               totalHrs: result.totalHrs, ratePerHr: result.ratePerHr,
               split: result.split, createdAt: new Date().toISOString(),
               source: 'clover'
-            });
+            };
+            tips = tips.filter(t => t.date !== date);
+            tips.push(entry);
+            pushTips(entry); // sync to Supabase immediately
             autoTips++;
           }
         }
@@ -2597,6 +2661,45 @@ function getDayLaborCost(date) {
   return dayPunches.reduce((s,p) => s + parseFloat(p.hoursWorked) * p.rate, 0);
 }
 
+let salesEditMode = false;
+
+function toggleSalesEdit() {
+  salesEditMode = !salesEditMode;
+  const btn = document.getElementById('sales-edit-toggle');
+  const card = document.getElementById('sales-table-card');
+  if (btn) {
+    btn.textContent = salesEditMode ? '✓ Done Editing' : '✏ Edit';
+    btn.className = salesEditMode ? 'btn btn-acc btn-sm' : 'btn btn-ghost btn-sm';
+  }
+  if (card) card.className = 'card' + (salesEditMode ? ' edit-mode-active' : '');
+  renderSalesView();
+}
+
+function handleSalesFieldBlur(el) {
+  updateSalesField(el.getAttribute('data-date'), el.getAttribute('data-field'), el.value);
+}
+
+function updateSalesField(date, field, val) {
+  const s = salesData.find(x => x.date === date);
+  if (!s) return;
+  const num = parseFloat(val) || 0;
+  s[field] = num;
+  // If tips changed, update the tip split
+  if (field === 'tips') {
+    const result = calcTipSplit(date, num);
+    if (result && num > 0) {
+      tips = tips.filter(t => t.date !== date);
+      tips.push({ id: Date.now()+Math.random(), date, totalTips: num,
+        totalHrs: result.totalHrs, ratePerHr: result.ratePerHr,
+        split: result.split, createdAt: new Date().toISOString(), source: 'manual' });
+      saveTips();
+      toast('Tip split updated for '+fmtDate(date),'ok');
+    }
+  }
+  saveSales(); pushSalesDay(s);
+  renderSalesView(); renderSalesChart();
+}
+
 function renderSalesView() {
   const monthEl = document.getElementById('sales-month');
   if (!monthEl) return;
@@ -2606,74 +2709,202 @@ function renderSalesView() {
   const sum = document.getElementById('sales-monthly-summary');
   if (!tbl) return;
 
-  // Filter to selected month
   const monthSales = salesData.filter(s => {
     const d = new Date(s.date + 'T12:00:00');
     return d.getFullYear() === y && d.getMonth() === m-1;
   }).sort((a,b) => a.date.localeCompare(b.date));
 
   if (!monthSales.length) {
-    tbl.innerHTML = '<div class="empty">No sales data for this month. Import a Clover report.</div>';
+    tbl.innerHTML = '<div class="empty">No sales data for this month. Import a Clover report or add manually.</div>';
     if (sum) sum.innerHTML = '';
     return;
   }
 
-  // Build table
+  const E = salesEditMode; // shorthand
+  function cell(date, field, val) {
+    if (!E) return '$'+val.toFixed(2);
+    return '<input class="sales-edit-input" type="number" step="0.01" value="'+val.toFixed(2)+'"'
+      +' data-date="'+date+'" data-field="'+field+'" onblur="handleSalesFieldBlur(this)"'
+      +' onkeydown="if(event.key===\'Enter\')this.blur()">';
+  }
+
   let html = '<div style="overflow-x:auto"><table class="sales-tbl"><thead><tr>'
-    + '<th>Date</th><th>Net Sales</th><th>Tips</th><th>Taxes</th>'
-    + '<th>Labor Cost</th><th>Labor %</th><th>Amount Collected</th>'
+    + '<th>Date</th><th>Net Sales</th><th>Tips'+(E?' ✏':'')+'</th><th>Taxes</th>'
+    + '<th>Labor Cost</th><th>Labor %</th><th>Amt Collected</th>'
     + '</tr></thead><tbody>';
 
-  let totSales=0, totTips=0, totTax=0, totLabor=0;
-
+  let totSales=0,totTips=0,totTax=0,totLabor=0;
   monthSales.forEach(s => {
     const labor = getDayLaborCost(s.date);
     const pct = laborPct(labor, s.netSales);
     const pctStr = pct !== null ? pct.toFixed(1)+'%' : '—';
-    const pctCls = laborClass(pct);
     const barW = pct !== null ? Math.min(100,pct).toFixed(0) : 0;
-    const barColor = pct === null ? '' : pct <= 30 ? 'var(--green)' : pct <= 35 ? '#e09050' : 'var(--red)';
+    const barColor = pct===null?'':pct<=30?'var(--green)':pct<=35?'#e09050':'var(--red)';
     const tipEntry = tips.find(t => t.date === s.date);
-    const tipBadge = tipEntry ? ' <span style="font-size:10px;color:var(--green);font-family:monospace">✓ split</span>' : '';
-    totSales += s.netSales; totTips += s.tips; totTax += s.taxes; totLabor += labor;
+    const tipBadge = (!E && tipEntry) ? ' <span style="font-size:10px;color:var(--green);font-family:monospace">✓ split</span>' : '';
+    totSales+=s.netSales; totTips+=s.tips; totTax+=s.taxes; totLabor+=labor;
     html += '<tr>'
-      + '<td class="name-col">'+fmtDate(s.date)+'</td>'
-      + '<td>$'+s.netSales.toFixed(2)+'</td>'
-      + '<td>$'+s.tips.toFixed(2)+tipBadge+'</td>'
-      + '<td>$'+s.taxes.toFixed(2)+'</td>'
-      + '<td>$'+labor.toFixed(2)+'</td>'
-      + '<td class="'+pctCls+'">'+pctStr
+      +'<td class="name-col">'+fmtDate(s.date)+'</td>'
+      +'<td>'+(E?cell(s.date,'netSales',s.netSales):'$'+s.netSales.toFixed(2))+'</td>'
+      +'<td>'+cell(s.date,'tips',s.tips)+tipBadge+'</td>'
+      +'<td>'+(E?cell(s.date,'taxes',s.taxes):'$'+s.taxes.toFixed(2))+'</td>'
+      +'<td>$'+labor.toFixed(2)+'</td>'
+      +'<td class="'+laborClass(pct)+'">'+pctStr
         +(pct!==null?'<span class="labor-bar-wrap"><span class="labor-bar" style="width:'+barW+'%;background:'+barColor+'"></span></span>':'')
         +'</td>'
-      + '<td>$'+s.amountCollected.toFixed(2)+'</td>'
-      + '</tr>';
+      +'<td>'+(E?cell(s.date,'amountCollected',s.amountCollected):'$'+s.amountCollected.toFixed(2))+'</td>'
+      +'</tr>';
   });
 
-  // Totals row
-  const totPct = laborPct(totLabor, totSales);
+  const totPct = laborPct(totLabor,totSales);
   html += '<tr style="font-weight:600;border-top:2px solid var(--border2)">'
-    + '<td>Total</td>'
-    + '<td>$'+totSales.toFixed(2)+'</td>'
-    + '<td>$'+totTips.toFixed(2)+'</td>'
-    + '<td>$'+totTax.toFixed(2)+'</td>'
-    + '<td>$'+totLabor.toFixed(2)+'</td>'
-    + '<td class="'+laborClass(totPct)+'">'+(totPct!==null?totPct.toFixed(1)+'%':'—')+'</td>'
-    + '<td>$'+(totSales+totTips+totTax).toFixed(2)+'</td>'
-    + '</tr>';
-
+    +'<td>Total</td><td>$'+totSales.toFixed(2)+'</td><td>$'+totTips.toFixed(2)+'</td>'
+    +'<td>$'+totTax.toFixed(2)+'</td><td>$'+totLabor.toFixed(2)+'</td>'
+    +'<td class="'+laborClass(totPct)+'">'+(totPct!==null?totPct.toFixed(1)+'%':'—')+'</td>'
+    +'<td>$'+(totSales+totTips+totTax).toFixed(2)+'</td></tr>';
   html += '</tbody></table></div>';
   tbl.innerHTML = html;
 
-  // Summary cards
   if (sum) {
     const avgLabor = totPct ? totPct.toFixed(1) : '—';
     sum.innerHTML = '<div class="sales-summary-grid">'
-      + '<div class="summary-card"><div class="sc-label">Net Sales</div><div class="sc-val">$'+totSales.toFixed(0)+'</div></div>'
-      + '<div class="summary-card"><div class="sc-label">Tips Collected</div><div class="sc-val">$'+totTips.toFixed(0)+'</div></div>'
-      + '<div class="summary-card"><div class="sc-label">Total Labor</div><div class="sc-val">$'+totLabor.toFixed(0)+'</div></div>'
-      + '<div class="summary-card"><div class="sc-label">Avg Labor %</div><div class="sc-val '+laborClass(totPct)+'">'+avgLabor+'%</div></div>'
-      + '<div class="summary-card"><div class="sc-label">Days Tracked</div><div class="sc-val">'+monthSales.length+'</div></div>'
-      + '</div>';
+      +'<div class="summary-card"><div class="sc-label">Net Sales</div><div class="sc-val">$'+totSales.toFixed(0)+'</div></div>'
+      +'<div class="summary-card"><div class="sc-label">Tips Collected</div><div class="sc-val">$'+totTips.toFixed(0)+'</div></div>'
+      +'<div class="summary-card"><div class="sc-label">Total Labor</div><div class="sc-val">$'+totLabor.toFixed(0)+'</div></div>'
+      +'<div class="summary-card"><div class="sc-label">Avg Labor %</div><div class="sc-val '+laborClass(totPct)+'">'+avgLabor+'%</div></div>'
+      +'<div class="summary-card"><div class="sc-label">Days Tracked</div><div class="sc-val">'+monthSales.length+'</div></div>'
+      +'</div>';
+  }
+}
+
+// ── SALES CHART ──────────────────────────────────────────────────────────────
+let chartView = 'month';
+
+function setChartView(v, btn) {
+  chartView = v;
+  document.querySelectorAll('.chart-view-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const customRange = document.getElementById('chart-custom-range');
+  const monthInput  = document.getElementById('chart-month');
+  if (customRange) customRange.style.display = v==='custom' ? 'flex' : 'none';
+  if (monthInput)  monthInput.style.display  = v==='custom' ? 'none' : 'block';
+  renderSalesChart();
+}
+
+function renderSalesChart() {
+  const canvas = document.getElementById('sales-chart-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  // Get data range
+  let dataPoints = [];
+  const today = todayStr();
+  if (chartView === 'month') {
+    const monthEl = document.getElementById('chart-month');
+    if (!monthEl || !monthEl.value) return;
+    const [y,m] = monthEl.value.split('-').map(Number);
+    dataPoints = salesData.filter(s => {
+      const d = new Date(s.date+'T12:00:00');
+      return d.getFullYear()===y && d.getMonth()===m-1;
+    }).sort((a,b)=>a.date.localeCompare(b.date))
+      .map(s => ({ label: new Date(s.date+'T12:00:00').getDate()+'', date: s.date, sales: s.netSales, labor: getDayLaborCost(s.date) }));
+  } else if (chartView === 'week') {
+    const mon = getMonday(new Date());
+    dataPoints = Array.from({length:7},(_,i)=>addDays(mon,i)).map(d => {
+      const ds = toDateStr(d);
+      const s = salesData.find(x=>x.date===ds);
+      return { label: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i], date: ds, sales: s?s.netSales:0, labor: getDayLaborCost(ds) };
+    });
+  } else {
+    const from = document.getElementById('chart-from')?.value;
+    const to   = document.getElementById('chart-to')?.value;
+    if (!from || !to) return;
+    dataPoints = salesData.filter(s=>s.date>=from&&s.date<=to)
+      .sort((a,b)=>a.date.localeCompare(b.date))
+      .map(s => ({ label: fmtDate(s.date).replace(/\w+, /,''), date: s.date, sales: s.netSales, labor: getDayLaborCost(s.date) }));
+  }
+  if (!dataPoints.length) { ctx.clearRect(0,0,canvas.width,canvas.height); return; }
+
+  // Sizing
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || 600;
+  const H = 260;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W+'px';
+  canvas.style.height = H+'px';
+  ctx.scale(dpr, dpr);
+
+  const PAD = { top:20, right:55, bottom:40, left:55 };
+  const gW = W - PAD.left - PAD.right;
+  const gH = H - PAD.top  - PAD.bottom;
+
+  // Scales
+  const maxSales = Math.max(...dataPoints.map(d=>Math.max(d.sales,d.labor)), 1);
+  const maxPct   = Math.max(...dataPoints.map(d=>laborPct(d.labor,d.sales)||0), 50);
+  const scaleL   = v => PAD.top + gH - (v / maxSales * gH);
+  const scaleR   = v => PAD.top + gH - (v / maxPct  * gH);
+  const scaleX   = (i) => PAD.left + (i + 0.5) * (gW / dataPoints.length);
+
+  // Get CSS vars
+  const styles = getComputedStyle(document.documentElement);
+  const colorAccent = styles.getPropertyValue('--accent').trim() || '#d4a843';
+  const colorGreen  = styles.getPropertyValue('--green').trim()  || '#5aab7a';
+  const colorRed    = styles.getPropertyValue('--red').trim()    || '#c95c5c';
+  const colorBorder = styles.getPropertyValue('--border').trim() || '#2a2a26';
+  const colorText2  = styles.getPropertyValue('--text2').trim()  || '#8a8578';
+  const colorText3  = styles.getPropertyValue('--text3').trim()  || '#4a4840';
+  const colorSurface2 = styles.getPropertyValue('--surface2').trim() || '#1c1c19';
+
+  ctx.clearRect(0,0,W,H);
+
+  // Grid lines
+  ctx.strokeStyle = colorBorder; ctx.lineWidth = 0.5;
+  for (let i=0;i<=4;i++) {
+    const y = PAD.top + gH - (i/4)*gH;
+    ctx.beginPath(); ctx.moveTo(PAD.left,y); ctx.lineTo(PAD.left+gW,y); ctx.stroke();
+    // Left axis labels ($)
+    ctx.fillStyle = colorText3; ctx.font = '10px DM Mono,monospace'; ctx.textAlign='right';
+    ctx.fillText('$'+(maxSales*i/4).toFixed(0), PAD.left-6, y+4);
+    // Right axis labels (%)
+    ctx.textAlign='left';
+    ctx.fillText((maxPct*i/4).toFixed(0)+'%', PAD.left+gW+6, y+4);
+  }
+
+  // Bar width
+  const barW = Math.max(4, gW/dataPoints.length*0.35);
+
+  // Sales bars
+  dataPoints.forEach((d,i) => {
+    const x = scaleX(i);
+    const bh = d.sales/maxSales*gH;
+    ctx.fillStyle = colorAccent+'99';
+    ctx.fillRect(x-barW-1, scaleL(d.sales), barW, bh);
+    // Labor bars
+    const lh = d.labor/maxSales*gH;
+    ctx.fillStyle = colorGreen+'99';
+    ctx.fillRect(x+1, scaleL(d.labor), barW, lh);
+    // X labels
+    ctx.fillStyle = colorText2; ctx.font='10px DM Mono,monospace'; ctx.textAlign='center';
+    ctx.fillText(d.label, x, H-PAD.bottom+14);
+  });
+
+  // Labor % line
+  ctx.strokeStyle = colorRed; ctx.lineWidth = 2; ctx.setLineDash([4,3]);
+  ctx.beginPath();
+  dataPoints.forEach((d,i) => {
+    const pct = laborPct(d.labor,d.sales) || 0;
+    const x = scaleX(i), y = scaleR(pct);
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke(); ctx.setLineDash([]);
+
+  // 30% threshold line
+  if (maxPct >= 30) {
+    ctx.strokeStyle = colorRed+'55'; ctx.lineWidth=1; ctx.setLineDash([2,4]);
+    const y30 = scaleR(30);
+    ctx.beginPath(); ctx.moveTo(PAD.left,y30); ctx.lineTo(PAD.left+gW,y30); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle=colorRed+'99'; ctx.font='9px DM Mono,monospace'; ctx.textAlign='left';
+    ctx.fillText('30%', PAD.left+gW+6, y30+3);
   }
 }
 
@@ -3047,6 +3278,141 @@ function copyEmailBody() {
     document.body.removeChild(ta);
     toast('Copied to clipboard ✓', 'ok');
   });
+}
+
+// ── VISUAL SCHEDULE GRID ─────────────────────────────────────────────────────
+let vschedCursor = new Date();
+let vschedDragging = false;
+let vschedDragEmp  = null;
+let vschedDragStart = null;
+let vschedDragCurrent = null;
+let vschedDragDate = null;
+
+const VSCHED_START = 8;
+const VSCHED_END   = 24;
+const VSCHED_HOURS = VSCHED_END - VSCHED_START;
+
+function initVSched() { vschedCursor = getMonday(new Date()); }
+function navVSched(dir) { vschedCursor = addDays(vschedCursor, dir*7); renderVSched(); }
+function goVSchedToday() { vschedCursor = getMonday(new Date()); renderVSched(); }
+function fmt12h(h) {
+  if(h===0||h===24) return '12am';
+  if(h<12) return h+'am';
+  if(h===12) return '12pm';
+  return (h-12)+'pm';
+}
+
+function renderVSched() {
+  const grid = document.getElementById('vsched-grid');
+  const periodEl = document.getElementById('vsched-period');
+  if (!grid) return;
+  const mon = getMonday(vschedCursor);
+  const days = Array.from({length:7},(_,i)=>addDays(mon,i));
+  const today = todayStr();
+  if (periodEl) periodEl.textContent =
+    mon.toLocaleDateString('en-CA',{month:'short',day:'numeric'})+' – '+
+    addDays(mon,6).toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'});
+  const filterVal = document.getElementById('vsched-emp-filter')?.value||'all';
+  const empList = filterVal==='all' ? employees : employees.filter(e=>e.id===filterVal);
+  const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html = '<table class="vsched-table"><thead>';
+  html += '<tr><th class="vsched-time-col" rowspan="2">Time</th>';
+  days.forEach((d,i) => {
+    const ds=toDateStr(d), isT=ds===today;
+    html += '<th class="day-head" colspan="'+empList.length+'" style="'+(isT?'color:var(--accent)':'')+'">'
+      +DOW[i]+' '+d.getDate()+'</th>';
+  });
+  html += '</tr><tr>';
+  days.forEach(() => {
+    empList.forEach(emp => {
+      html += '<th class="emp-head" style="color:'+empColor(emp.name)+'">'+emp.name.slice(0,4)+'</th>';
+    });
+  });
+  html += '</tr></thead><tbody>';
+  for (let h=VSCHED_START; h<VSCHED_END; h++) {
+    html += '<tr><td class="vsched-time-col">'+fmt12h(h)+'</td>';
+    days.forEach(d => {
+      const ds=toDateStr(d);
+      empList.forEach(emp => {
+        const shift=shifts.find(s=>s.date===ds&&s.employee===emp.name);
+        let inShift=false;
+        if(shift){const sh=parseInt(shift.start),eh=shift.end==='00:00'?24:parseInt(shift.end);inShift=h>=sh&&h<eh;}
+        const cellId='vc-'+ds+'-'+emp.id+'-'+h;
+        html += '<td class="vsched-cell'+(inShift?' shift-on':'')+'"'
+          +' id="'+cellId+'"'
+          +' style="'+(inShift?'background:'+empBg(emp.name)+';border-color:'+empColor(emp.name)+'40':'')+'"'
+          +' data-date="'+ds+'" data-empid="'+emp.id+'" data-empname="'+emp.name+'" data-hour="'+h+'"'
+          +' onmousedown="vschedMouseDown(this,event)"'
+          +' onmouseenter="vschedMouseEnter(this)"'
+          +'></td>';
+      });
+    });
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  grid.innerHTML = html;
+  grid.onmouseup = vschedMouseUp;
+  grid.onmouseleave = () => { if(vschedDragging) vschedMouseUp(); };
+}
+
+function vschedMouseDown(cell,e) {
+  e.preventDefault();
+  vschedDragging=true;
+  vschedDragEmp=cell.dataset.empname;
+  vschedDragDate=cell.dataset.date;
+  vschedDragStart=parseInt(cell.dataset.hour);
+  vschedDragCurrent=vschedDragStart;
+  vschedHighlight();
+}
+
+function vschedMouseEnter(cell) {
+  if(!vschedDragging) return;
+  if(cell.dataset.date!==vschedDragDate||cell.dataset.empname!==vschedDragEmp) return;
+  vschedDragCurrent=parseInt(cell.dataset.hour);
+  vschedHighlight();
+}
+
+function vschedHighlight() {
+  if(!vschedDragEmp||!vschedDragDate) return;
+  const start=Math.min(vschedDragStart,vschedDragCurrent);
+  const end=Math.max(vschedDragStart,vschedDragCurrent);
+  const emp=employees.find(e=>e.name===vschedDragEmp);
+  if(!emp) return;
+  for(let h=VSCHED_START;h<VSCHED_END;h++){
+    const cell=document.getElementById('vc-'+vschedDragDate+'-'+emp.id+'-'+h);
+    if(!cell) continue;
+    const inDrag=h>=start&&h<=end;
+    cell.style.background=inDrag?empBg(vschedDragEmp):'';
+    cell.style.borderColor=inDrag?empColor(vschedDragEmp)+'40':'';
+  }
+}
+
+function vschedMouseUp() {
+  if(!vschedDragging||!vschedDragEmp||!vschedDragDate){vschedDragging=false;return;}
+  vschedDragging=false;
+  const startH=Math.min(vschedDragStart,vschedDragCurrent);
+  const endH=Math.max(vschedDragStart,vschedDragCurrent)+1;
+  const startStr=String(startH).padStart(2,'0')+':00';
+  const endStr=endH>=24?'00:00':String(endH).padStart(2,'0')+':00';
+  const existing=shifts.find(s=>s.date===vschedDragDate&&s.employee===vschedDragEmp);
+  const sh=existing?parseInt(existing.start):-1;
+  const eh=existing?(existing.end==='00:00'?24:parseInt(existing.end)):-1;
+  // Single click on existing = remove
+  if(existing&&vschedDragStart===vschedDragCurrent&&vschedDragStart>=sh&&vschedDragStart<eh){
+    shifts=shifts.filter(s=>!(s.date===vschedDragDate&&s.employee===vschedDragEmp));
+    save();pushShifts();
+    const id=vschedDragDate+'_'+vschedDragEmp.toLowerCase();
+    sbFetch('r9k_shifts?id=eq.'+encodeURIComponent(id),{method:'DELETE',prefer:'',headers:{'Prefer':''}}).catch(()=>{});
+    toast(vschedDragEmp+' shift removed','ok');
+  } else {
+    shifts=shifts.filter(s=>!(s.date===vschedDragDate&&s.employee===vschedDragEmp));
+    shifts.push({date:vschedDragDate,employee:vschedDragEmp,start:startStr,end:endStr});
+    shifts.sort((a,b)=>a.date.localeCompare(b.date));
+    save();pushShifts();
+    toast(vschedDragEmp+' '+startStr+'–'+endStr+' saved','ok');
+  }
+  renderVSched();renderAdminShifts();
+  vschedDragEmp=null;vschedDragDate=null;vschedDragStart=null;vschedDragCurrent=null;
 }
 
 // ── XLSX IMPORT ───────────────────────────────────────────────────────────────
@@ -3514,10 +3880,24 @@ function showAtab(id,btn){
   if(btn)btn.classList.add('active');
   if(id==='salary') renderSalary();
   if(id==='corrections') renderAdminCorrections();
+  if(id==='ashifts'){
+    refreshSelects(); renderAdminShifts();
+    document.getElementById('shift-date').value=new Date().toISOString().slice(0,10);
+    initVSched(); renderVSched();
+    const vf=document.getElementById('vsched-emp-filter');
+    if(vf){
+      const cur=vf.value;
+      vf.innerHTML='<option value="all">All staff</option>';
+      employees.forEach(e=>vf.innerHTML+='<option value="'+e.id+'">'+e.name+'</option>');
+      if(cur)vf.value=cur;
+    }
+  }
   if(id==='sales'){
-    const sm = document.getElementById('sales-month');
-    if (sm && !sm.value) sm.value = new Date().toISOString().slice(0,7);
-    renderSalesView();
+    const sm=document.getElementById('sales-month');
+    if(sm&&!sm.value) sm.value=new Date().toISOString().slice(0,7);
+    const cm=document.getElementById('chart-month');
+    if(cm&&!cm.value) cm.value=new Date().toISOString().slice(0,7);
+    renderSalesView(); renderSalesChart();
   }
   if(id==='tips'){
     const monthEl=document.getElementById('tip-month');
@@ -3525,10 +3905,9 @@ function showAtab(id,btn){
     renderTips();
   }
   if(id==='email'){
-    // Default week to this Monday, month to current month
-    const mon = getMonday(new Date());
-    document.getElementById('email-week-date').value = mon.toISOString().slice(0,10);
-    document.getElementById('email-month-date').value = new Date().toISOString().slice(0,7);
+    const mon=getMonday(new Date());
+    document.getElementById('email-week-date').value=mon.toISOString().slice(0,10);
+    document.getElementById('email-month-date').value=new Date().toISOString().slice(0,7);
   }
 }
 const dz=document.getElementById('drop-zone');
@@ -3544,6 +3923,7 @@ if(sdz){
 
 // Init
 refreshSelects();
+window.addEventListener('resize', () => { if(document.getElementById('sales-chart-canvas')) renderSalesChart(); });
 // Pull live data from Supabase on load
 pullAll();
 // Re-pull every 30s to catch punches from other devices
