@@ -204,12 +204,25 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 .chart-view-btn.active{background:var(--accent-bg);border-color:var(--accent-border);color:var(--accent)}
 #sales-chart-canvas{width:100%;height:260px;display:block}
 /* VISUAL SCHEDULE GRID */
-.vsched-wrap{overflow-x:auto;margin-bottom:0}
-.vsched-table{border-collapse:collapse;min-width:600px;width:100%}
+.vsched-wrap{overflow-x:auto;margin-bottom:0;position:relative}
+.vsched-table{border-collapse:separate;border-spacing:0;min-width:600px;width:100%}
 .vsched-table th{background:var(--surface2);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.06em;color:var(--text3);text-transform:uppercase;border:1px solid var(--border);padding:4px 6px;text-align:center;font-weight:400;white-space:nowrap}
 .vsched-table th.day-head{background:var(--surface3);color:var(--text2);font-size:11px}
 .vsched-table th.emp-head{background:var(--surface3);color:var(--accent);font-size:11px;min-width:48px}
-.vsched-time-col{background:var(--surface2);font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);border:1px solid var(--border);padding:2px 6px;text-align:right;white-space:nowrap;width:40px}
+.vsched-time-col{background:var(--surface2);font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);border:1px solid var(--border);padding:2px 8px;text-align:right;white-space:nowrap;width:44px;
+  position:sticky;left:0;z-index:2}
+.vsched-table thead th:first-child{position:sticky;left:0;z-index:3;background:var(--surface3)}
+/* COLLAPSIBLE CARDS */
+.card-collapsible .card-body{overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s ease}
+.card-collapsible.collapsed .card-body{max-height:0!important;opacity:0}
+.card-collapsible.collapsed .card-head{margin-bottom:0}
+.collapse-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0 4px;line-height:1;transition:transform .2s;flex-shrink:0;font-family:'DM Mono',monospace}
+.card-collapsible.collapsed .collapse-btn{transform:rotate(-90deg)}
+.collapse-btn:hover{color:var(--text)}
+/* COLLAPSE ALL / EXPAND ALL */
+.tab-collapse-bar{display:flex;gap:6px;margin-bottom:12px;justify-content:flex-end}
+.tab-collapse-btn{padding:4px 12px;border-radius:6px;border:1px solid var(--border);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;background:var(--surface2);color:var(--text2);transition:all .15s;letter-spacing:.04em}
+.tab-collapse-btn:hover{color:var(--text);border-color:var(--border2)}
 .vsched-cell{border:1px solid var(--border);width:36px;height:22px;cursor:crosshair;transition:background .05s;user-select:none;-webkit-user-select:none;position:relative}
 .vsched-cell.shift-on{border-color:transparent}
 .vsched-cell.drag-preview{opacity:.7}
@@ -699,10 +712,10 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
     <div class="card">
       <div class="card-head">
         <span class="card-title">Visual Schedule</span>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span id="vsched-hint" style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">Click and drag to set shifts</span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span id="vsched-hint" style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">Drag to set · Click filled cell to remove</span>
+          <button id="vsched-update-btn" class="btn btn-acc btn-sm" onclick="vschedCommit()" style="display:none">Update Schedule</button>
         </div>
-      </div>
       <div class="vsched-nav">
         <button class="sched-nav-btn" onclick="navVSched(-1)">‹</button>
         <span class="vsched-period" id="vsched-period"></span>
@@ -3293,8 +3306,16 @@ const VSCHED_END   = 24;
 const VSCHED_HOURS = VSCHED_END - VSCHED_START;
 
 function initVSched() { vschedCursor = getMonday(new Date()); }
-function navVSched(dir) { vschedCursor = addDays(vschedCursor, dir*7); renderVSched(); }
-function goVSchedToday() { vschedCursor = getMonday(new Date()); renderVSched(); }
+function navVSched(dir) { 
+  if(Object.keys(vschedPending).length && !confirm('You have unsaved changes. Discard them?')) return;
+  vschedPending={};
+  vschedCursor = addDays(vschedCursor, dir*7); renderVSched(); 
+}
+function goVSchedToday() { 
+  if(Object.keys(vschedPending).length && !confirm('You have unsaved changes. Discard them?')) return;
+  vschedPending={};
+  vschedCursor = getMonday(new Date()); renderVSched(); 
+}
 function fmt12h(h) {
   if(h===0||h===24) return '12am';
   if(h<12) return h+'am';
@@ -3387,6 +3408,9 @@ function vschedHighlight() {
   }
 }
 
+// Track pending vsched changes before committing
+let vschedPending = {}; // key: "date_empname" -> {action:'set'|'remove', shift}
+
 function vschedMouseUp() {
   if(!vschedDragging||!vschedDragEmp||!vschedDragDate){vschedDragging=false;return;}
   vschedDragging=false;
@@ -3395,24 +3419,58 @@ function vschedMouseUp() {
   const startStr=String(startH).padStart(2,'0')+':00';
   const endStr=endH>=24?'00:00':String(endH).padStart(2,'0')+':00';
   const existing=shifts.find(s=>s.date===vschedDragDate&&s.employee===vschedDragEmp);
-  const sh=existing?parseInt(existing.start):-1;
-  const eh=existing?(existing.end==='00:00'?24:parseInt(existing.end)):-1;
-  // Single click on existing = remove
-  if(existing&&vschedDragStart===vschedDragCurrent&&vschedDragStart>=sh&&vschedDragStart<eh){
-    shifts=shifts.filter(s=>!(s.date===vschedDragDate&&s.employee===vschedDragEmp));
-    save();pushShifts();
-    const id=vschedDragDate+'_'+vschedDragEmp.toLowerCase();
-    sbFetch('r9k_shifts?id=eq.'+encodeURIComponent(id),{method:'DELETE',prefer:'',headers:{'Prefer':''}}).catch(()=>{});
-    toast(vschedDragEmp+' shift removed','ok');
-  } else {
-    shifts=shifts.filter(s=>!(s.date===vschedDragDate&&s.employee===vschedDragEmp));
-    shifts.push({date:vschedDragDate,employee:vschedDragEmp,start:startStr,end:endStr});
-    shifts.sort((a,b)=>a.date.localeCompare(b.date));
-    save();pushShifts();
-    toast(vschedDragEmp+' '+startStr+'–'+endStr+' saved','ok');
+  const key=vschedDragDate+'__'+vschedDragEmp;
+  const isSingleClick = vschedDragStart===vschedDragCurrent;
+
+  if(isSingleClick && existing) {
+    // Single click on any cell of an existing shift — always remove
+    vschedPending[key] = {action:'remove', date:vschedDragDate, employee:vschedDragEmp};
+    // Visually clear all cells for this emp/date
+    const emp=employees.find(e=>e.name===vschedDragEmp);
+    if(emp){
+      for(let h=VSCHED_START;h<VSCHED_END;h++){
+        const cell=document.getElementById('vc-'+vschedDragDate+'-'+emp.id+'-'+h);
+        if(cell){cell.style.background='';cell.style.borderColor='';cell.classList.remove('shift-on');}
+      }
+    }
+    toast(vschedDragEmp+' shift removed — click Update Schedule to save','ok');
+  } else if(!isSingleClick || !existing) {
+    // Drag = set new shift (or single click on empty cell = create 1-hour shift)
+    vschedPending[key] = {action:'set', date:vschedDragDate, employee:vschedDragEmp, start:startStr, end:endStr};
+    toast(vschedDragEmp+' '+startStr+'–'+endStr+' — click Update Schedule to save','ok');
   }
-  renderVSched();renderAdminShifts();
+
+  vschedShowUpdateBtn();
   vschedDragEmp=null;vschedDragDate=null;vschedDragStart=null;vschedDragCurrent=null;
+}
+
+function vschedShowUpdateBtn() {
+  const hasPending = Object.keys(vschedPending).length > 0;
+  let btn = document.getElementById('vsched-update-btn');
+  if (!btn) return;
+  btn.style.display = hasPending ? 'block' : 'none';
+  btn.textContent = 'Update Schedule (' + Object.keys(vschedPending).length + ' change' + (Object.keys(vschedPending).length!==1?'s':'') + ')';
+}
+
+function vschedCommit() {
+  if(!Object.keys(vschedPending).length){toast('No changes to save','err');return;}
+  Object.values(vschedPending).forEach(p => {
+    if(p.action==='remove'){
+      shifts=shifts.filter(s=>!(s.date===p.date&&s.employee===p.employee));
+      const id=p.date+'_'+p.employee.toLowerCase();
+      sbFetch('r9k_shifts?id=eq.'+encodeURIComponent(id),{method:'DELETE',prefer:'',headers:{'Prefer':''}}).catch(()=>{});
+    } else {
+      shifts=shifts.filter(s=>!(s.date===p.date&&s.employee===p.employee));
+      shifts.push({date:p.date,employee:p.employee,start:p.start,end:p.end});
+    }
+  });
+  shifts.sort((a,b)=>a.date.localeCompare(b.date));
+  save(); pushShifts();
+  const count = Object.keys(vschedPending).length;
+  vschedPending = {};
+  renderVSched(); renderAdminShifts();
+  document.getElementById('vsched-update-btn').style.display='none';
+  toast(count+' shift'+(count!==1?'s':'')+' updated ✓','ok');
 }
 
 // ── XLSX IMPORT ───────────────────────────────────────────────────────────────
@@ -3873,6 +3931,100 @@ function showPane(id,btn){
     setTimeout(()=>document.getElementById('admin-pw-input').focus(), 100);
   }
 }
+// ── COLLAPSIBLE CARDS ────────────────────────────────────────────────────────
+function initCollapsibleCards(panelId) {
+  const panel = document.getElementById('apanel-'+panelId);
+  if (!panel) return;
+
+  // Add collapse bar if not already there
+  if (!panel.querySelector('.tab-collapse-bar')) {
+    const bar = document.createElement('div');
+    bar.className = 'tab-collapse-bar';
+    bar.innerHTML =
+      '<button class="tab-collapse-btn" data-pid="'+panelId+'" onclick="collapseAll(this.getAttribute(\'data-pid\'))">- Collapse All</button>'
+      +'<button class="tab-collapse-btn" data-pid="'+panelId+'" onclick="expandAll(this.getAttribute(\'data-pid\'))">+ Expand All</button>';
+    panel.insertBefore(bar, panel.firstChild);
+  }
+
+  // Make each .card collapsible if not already done
+  panel.querySelectorAll('.card').forEach((card, idx) => {
+    if (card.classList.contains('card-collapsible')) return;
+    card.classList.add('card-collapsible');
+    const head = card.querySelector('.card-head');
+    if (!head) return;
+    const title = head.querySelector('.card-title');
+    if (!title) return;
+
+    // Wrap everything after card-head in a card-body div
+    const body = document.createElement('div');
+    body.className = 'card-body';
+    // Move all siblings after head into body
+    const siblings = [];
+    let el = head.nextElementSibling;
+    while (el) { siblings.push(el); el = el.nextElementSibling; }
+    siblings.forEach(s => body.appendChild(s));
+    card.appendChild(body);
+
+    // Set max-height to current height for animation
+    body.style.maxHeight = body.scrollHeight + 'px';
+
+    // Add toggle button to head
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'collapse-btn';
+    toggleBtn.textContent = '▾';
+    toggleBtn.title = 'Collapse';
+    toggleBtn.onclick = (e) => { e.stopPropagation(); toggleCard(card, body); };
+    head.appendChild(toggleBtn);
+
+    // Make title clickable too
+    head.style.cursor = 'pointer';
+    head.onclick = (e) => {
+      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+      toggleCard(card, body);
+    };
+  });
+}
+
+function toggleCard(card, body) {
+  const isCollapsed = card.classList.contains('collapsed');
+  if (isCollapsed) {
+    card.classList.remove('collapsed');
+    body.style.maxHeight = body.scrollHeight + 'px';
+    // After animation, set to auto to allow dynamic content
+    setTimeout(() => { if(!card.classList.contains('collapsed')) body.style.maxHeight = 'none'; }, 260);
+  } else {
+    // Snapshot height before collapsing
+    body.style.maxHeight = body.scrollHeight + 'px';
+    requestAnimationFrame(() => {
+      card.classList.add('collapsed');
+      body.style.maxHeight = '0';
+    });
+  }
+}
+
+function collapseAll(panelId) {
+  const panel = document.getElementById('apanel-'+panelId);
+  if (!panel) return;
+  panel.querySelectorAll('.card-collapsible').forEach(card => {
+    const body = card.querySelector('.card-body');
+    if (!body || card.classList.contains('collapsed')) return;
+    body.style.maxHeight = body.scrollHeight + 'px';
+    requestAnimationFrame(() => { card.classList.add('collapsed'); body.style.maxHeight = '0'; });
+  });
+}
+
+function expandAll(panelId) {
+  const panel = document.getElementById('apanel-'+panelId);
+  if (!panel) return;
+  panel.querySelectorAll('.card-collapsible').forEach(card => {
+    const body = card.querySelector('.card-body');
+    if (!body || !card.classList.contains('collapsed')) return;
+    card.classList.remove('collapsed');
+    body.style.maxHeight = body.scrollHeight + 'px';
+    setTimeout(() => { if(!card.classList.contains('collapsed')) body.style.maxHeight = 'none'; }, 260);
+  });
+}
+
 function showAtab(id,btn){
   document.querySelectorAll('.apanel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.atab').forEach(t=>t.classList.remove('active'));
@@ -3909,6 +4061,8 @@ function showAtab(id,btn){
     document.getElementById('email-week-date').value=mon.toISOString().slice(0,10);
     document.getElementById('email-month-date').value=new Date().toISOString().slice(0,7);
   }
+  // Init collapsible cards for this tab
+  setTimeout(() => initCollapsibleCards(id), 50);
 }
 const dz=document.getElementById('drop-zone');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
